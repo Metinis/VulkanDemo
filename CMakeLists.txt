@@ -3,4 +3,20 @@ project(VulkanDemo C)
 
 set(CMAKE_C_STANDARD 23)
 
-add_executable(VulkanDemo main.c)
+# Add GLFW include directory
+include_directories(include/glfw/include)
+
+# Add GLFW source files (assuming it's in include/glfw)
+add_subdirectory(include/glfw)
+
+# Add cglm include directory
+include_directories(include/cglm/include)
+
+find_package(Vulkan REQUIRED)
+
+# Add VulkanDemo executable
+add_executable(VulkanDemo src/main.c
+        src/application.c)
+
+# Link GLFW
+target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)
