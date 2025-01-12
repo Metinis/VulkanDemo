@@ -3,11 +3,13 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <stdio.h>
 #include <cglm/mat4.h>
+#include <vulkan/vulkan_core.h>
 
 typedef struct GLFWwindow GLFWwindow;
 
 typedef struct Application {
-    GLFWwindow *window;
+    GLFWwindow *m_window;
+    VkInstance m_vk_instance;
 }t_Application;
 
 void app_init(t_Application *app);
