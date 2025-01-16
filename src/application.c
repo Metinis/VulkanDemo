@@ -17,15 +17,15 @@ static bool check_validation_layer_support(const char** validation_layers, size_
 
         for(size_t j = 0; j < layer_count; j++) {
             if (strcmp(validation_layers[i], available_layers[j].layerName) == 0) {
-                layer_found = true;
+                layer_found = 1;
                 break;
             }
         }
         if(!layer_found) {
-            return false;
+            return 0;
         }
     }
-    return true;
+    return 1;
 }
 static const char** get_required_extensions(const uint8_t enable_validation_layers, uint32_t* extension_count) {
     uint32_t glfwExtensionCount = 0;
