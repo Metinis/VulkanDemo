@@ -5,13 +5,18 @@
 #include <cglm/mat4.h>
 #include <vulkan/vulkan_core.h>
 
+#include "utils.h"
+
 typedef struct GLFWwindow GLFWwindow;
 
 typedef struct Application {
-    GLFWwindow *m_window;
-    VkInstance m_vk_instance;
+    GLFWwindow *window;
+    VkInstance vk_instance;
     VkDebugUtilsMessengerEXT debug_messenger;
     uint8_t enable_validation_layers;
+    VkPhysicalDevice physical_device;
+    VkDevice device;
+    VkQueue graphics_queue;
 }t_Application;
 
 void app_init(t_Application *app);

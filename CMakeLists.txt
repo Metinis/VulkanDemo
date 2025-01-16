@@ -16,7 +16,11 @@ find_package(Vulkan REQUIRED)
 
 # Add VulkanDemo executable
 add_executable(VulkanDemo src/main.c
-        src/application.c)
+        src/application.c
+        src/vulkan_debug.c
+        src/vulkan_debug.h
+        src/utils.c
+        src/utils.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)

@@ -4,31 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-static void print_available_validation_layers() {
-    uint32_t layer_count = 0;
+#include "vulkan_debug.h"
 
-    VkResult result = vkEnumerateInstanceLayerProperties(&layer_count, NULL);
-    if (result != VK_SUCCESS) {
-        printf("Failed to enumerate instance layers!\n");
-        return;
-    }
 
-    VkLayerProperties* available_layers = (VkLayerProperties*)malloc(layer_count * sizeof(VkLayerProperties));
-
-    result = vkEnumerateInstanceLayerProperties(&layer_count, available_layers);
-    if (result != VK_SUCCESS) {
-        printf("Failed to retrieve instance layer properties!\n");
-        free(available_layers);
-        return;
-    }
-
-    printf("Available validation layers:\n");
-    for (uint32_t i = 0; i < layer_count; ++i) {
-        printf("  %s\n", available_layers[i].layerName);
-    }
-
-    free(available_layers);
-}
 static bool check_validation_layer_support(const char** validation_layers, size_t validation_size) {
     uint32_t layer_count;
     vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
@@ -94,7 +72,7 @@ static void app_enable_validation(VkInstanceCreateInfo* create_info) {
     const char* validation_layers[] = {
          "VK_LAYER_KHRONOS_validation"
      };
-     const uint32_t validation_size = 1;
+    const uint32_t validation_size = 1;
 
     if (check_validation_layer_support(validation_layers, validation_size)) {
         create_info->enabledLayerCount = (uint32_t)(validation_size);
@@ -105,23 +83,7 @@ static void app_enable_validation(VkInstanceCreateInfo* create_info) {
     }
 
 }
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData) {
 
-    printf("validation layer: %s", pCallbackData->pMessage);
-
-    return VK_FALSE;
-}
-static void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT *createInfo) {
-    memset(createInfo, 0, sizeof(VkDebugUtilsMessengerCreateInfoEXT));
-    createInfo->sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo->messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo->messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo->pfnUserCallback = debug_callback;
-}
 static void app_create_vulkan_inst(t_Application *app) {
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -141,29 +103,27 @@ static void app_create_vulkan_inst(t_Application *app) {
     app->enable_validation_layers = 0;
 #endif
 
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
-
-
+    VkDebugUtilsMessengerCreateInfoEXT debug_create_info = {};
 
     if(app->enable_validation_layers) {
         app_enable_validation(&create_info);
 
-        populate_debug_messenger_create_info(&debugCreateInfo);
-        create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
+        populate_debug_messenger_create_info(&debug_create_info);
+        create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debug_create_info;
+
+        debug_print_available_validation_layers();
     }
 
     const char** extensions = NULL;
     app_enable_extensions(&create_info, &extensions, app->enable_validation_layers);
 
-    print_available_validation_layers();
+    const VkResult result = vkCreateInstance(&create_info, nullptr, &app->vk_instance);
 
-
-
-    const VkResult result = vkCreateInstance(&create_info, nullptr, &app->m_vk_instance);
-
-    printf("Enabled Vulkan extensions:\n");
-    for (uint32_t i = 0; i < create_info.enabledExtensionCount; i++) {
-        printf("  %s\n", extensions[i]);
+    if(app->enable_validation_layers) {
+        printf("Enabled Vulkan extensions:\n");
+        for (uint32_t i = 0; i < create_info.enabledExtensionCount; i++) {
+            printf("  %s\n", extensions[i]);
+        }
     }
 
     free(extensions);
@@ -171,57 +131,132 @@ static void app_create_vulkan_inst(t_Application *app) {
     if (result != VK_SUCCESS) {
         printf("Failed to create Vulkan instance. VkResult: %d\n", result);
     }
-
-
-
 }
-static VkResult create_debug_utils_messenger_ext(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
-    const PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance,
-        "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+static QueueFamilyIndices find_queue_families(VkPhysicalDevice device) {
+    QueueFamilyIndices indices = {
+        .graphicsFamily = { .value = 0, .has_value = 0 }
+    };
+
+    uint32_t queue_family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+
+    VkQueueFamilyProperties queue_families[queue_family_count];
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families);
+
+    for(int i = 0; i < queue_family_count; i++) {
+        if(queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            indices.graphicsFamily.has_value = 1;
+            indices.graphicsFamily.value = i;
+        }
+        if(indices.graphicsFamily.has_value) {
+            break;
+        }
+        i++;
+    }
+
+    return indices;
+}
+static uint8_t is_device_suitable(VkPhysicalDevice device) {
+    //TODO to be added to
+    /*VkPhysicalDeviceProperties device_properties;
+    VkPhysicalDeviceFeatures device_features;
+    vkGetPhysicalDeviceProperties(device, &device_properties);
+    vkGetPhysicalDeviceFeatures(device, &device_features);
+
+    return device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
+           device_features.geometryShader;*/
+    QueueFamilyIndices indices = find_queue_families(device);
+
+    return indices.graphicsFamily.has_value;
+}
+
+static void pick_physical_device(t_Application *app) {
+    app->physical_device = VK_NULL_HANDLE;
+
+    uint32_t device_count = 0;
+    vkEnumeratePhysicalDevices(app->vk_instance, &device_count, nullptr);
+
+    if (device_count == 0) {
+        printf("Failed to find device with vulkan support!\n");
+        exit(-1);
+    }
+
+    VkPhysicalDevice devices[device_count];
+    vkEnumeratePhysicalDevices(app->vk_instance, &device_count, devices);
+
+    for(int i = 0; i < device_count; i++) {
+        if(is_device_suitable(devices[i])) {
+            app->physical_device = devices[i];
+            break;
+        }
+    }
+    if(app->physical_device == VK_NULL_HANDLE) {
+        printf("Failed to find suitable device!\n");
+        exit(-1);
+    }
+}
+static void app_enable_validation_device(VkDeviceCreateInfo* create_info) {
+    const char* validation_layers[] = {
+        "VK_LAYER_KHRONOS_validation"
+    };
+    const uint32_t validation_size = 1;
+
+    if (check_validation_layer_support(validation_layers, validation_size)) {
+        create_info->enabledLayerCount = (uint32_t)(validation_size);
+        create_info->ppEnabledLayerNames = validation_layers;
     } else {
-        printf("Failed to load vkCreateDebugUtilsMessengerEXT function pointer!\n");
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
+        create_info->enabledLayerCount = 0;
+        create_info->ppEnabledLayerNames = nullptr;
     }
+
 }
+static void create_logical_device(t_Application *app) {
+    QueueFamilyIndices indices = find_queue_families(app->physical_device);
 
-static void setup_debug_messenger(t_Application *app) {
-    if (!app->enable_validation_layers) return;
+    VkDeviceQueueCreateInfo queue_create_info = {};
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_create_info.queueFamilyIndex = indices.graphicsFamily.value;
+    queue_create_info.queueCount = 1;
 
-    VkDebugUtilsMessengerCreateInfoEXT createInfo;
-    populate_debug_messenger_create_info(&createInfo);
+    float queuePriority = 1.0f;
+    queue_create_info.pQueuePriorities = &queuePriority;
 
-    if (create_debug_utils_messenger_ext(app->m_vk_instance, &createInfo, nullptr, &app->debug_messenger) != VK_SUCCESS) {
-        printf("failed to setup debug messenger!\n");
+    VkPhysicalDeviceFeatures device_features = {};
+
+    VkDeviceCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+    create_info.pQueueCreateInfos = &queue_create_info;
+    create_info.queueCreateInfoCount = 1;
+
+    create_info.pEnabledFeatures = &device_features;
+
+    create_info.enabledExtensionCount = 0;
+
+    app_enable_validation_device(&create_info);
+
+    if (vkCreateDevice(app->physical_device, &create_info, nullptr, &app->device) != VK_SUCCESS) {
+        printf("Failed to create physical device instance!\n");
+        exit(-1);
     }
-}
-static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
-    const PFN_vkDestroyDebugUtilsMessengerEXT func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        func(instance, debugMessenger, pAllocator);
-    }
+
+    vkGetDeviceQueue(app->device, indices.graphicsFamily.value, 0, &app->graphics_queue);
+
+
 }
 static void app_vulkan_init(t_Application *app) {
-    uint32_t extension_count = 0;
-
-    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
-
-    printf("Extensions supported %d\n", extension_count);
-
-    VkExtensionProperties extensions[extension_count] = {};
-
-    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions);
-
-    for(int i = 0; i < extension_count; ++i) {
-        printf("%s \n", extensions[i].extensionName);
-    }
-
+    debug_print_available_extensions();
 
     app_create_vulkan_inst(app);
 
     setup_debug_messenger(app);
+
+    pick_physical_device(app);
+
+    create_logical_device(app);
 }
+
+
 void app_init(t_Application *app) {
     glfwInit();
 
@@ -229,20 +264,21 @@ void app_init(t_Application *app) {
 
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    app->m_window = glfwCreateWindow(1280,720, "VulkanDemo", nullptr, nullptr);
+    app->window = glfwCreateWindow(1280,720, "VulkanDemo", nullptr, nullptr);
 
     app_vulkan_init(app);
 }
 void app_run(const t_Application *app) {
-    while(!glfwWindowShouldClose(app->m_window)) {
+    while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
     }
 }
 void app_end(const t_Application *app) {
     if (app->enable_validation_layers) {
-        DestroyDebugUtilsMessengerEXT(app->m_vk_instance, app->debug_messenger, nullptr);
+        destroy_debug_utils_messenger_ext(app->vk_instance, app->debug_messenger, nullptr);
     }
-    vkDestroyInstance(app->m_vk_instance, nullptr);
-    glfwDestroyWindow(app->m_window);
+    vkDestroyDevice(app->device, nullptr);
+    vkDestroyInstance(app->vk_instance, nullptr);
+    glfwDestroyWindow(app->window);
     glfwTerminate();
 }
