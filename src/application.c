@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static bool check_validation_layer_support(const char* validation_layers, size_t validation_size) {
+static bool check_validation_layer_support(const char** validation_layers, size_t validation_size) {
     uint32_t layer_count;
     vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
 
@@ -16,7 +16,7 @@ static bool check_validation_layer_support(const char* validation_layers, size_t
         uint8_t layer_found = 0;
 
         for(size_t j = 0; j < layer_count; j++) {
-            if (strcmp(&validation_layers[i], available_layers[j].layerName) == 0) {
+            if (strcmp(validation_layers[i], available_layers[j].layerName) == 0) {
                 layer_found = true;
                 break;
             }
@@ -80,7 +80,7 @@ static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*
     *extensions_ptr = required_extensions;
 }
 static void app_enable_validation(VkInstanceCreateInfo* create_info, const char*** extensions_ptr) {
-    const char* validation_layers = {
+    const char* validation_layers[] = {
          "VK_LAYER_KHRONOS_validation"
      };
      const size_t validation_size = 1;
@@ -95,7 +95,7 @@ static void app_enable_validation(VkInstanceCreateInfo* create_info, const char*
      }
      if (enable_validation_layers) {
          create_info->enabledLayerCount = (uint32_t)(validation_size);
-         create_info->ppEnabledLayerNames = &validation_layers;
+         create_info->ppEnabledLayerNames = validation_layers;
      } else {
          create_info->enabledLayerCount = 0;
      }
