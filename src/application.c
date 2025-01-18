@@ -132,9 +132,10 @@ static void app_create_vulkan_inst(t_Application *app) {
         printf("Failed to create Vulkan instance. VkResult: %d\n", result);
     }
 }
-static QueueFamilyIndices find_queue_families(VkPhysicalDevice device) {
+static QueueFamilyIndices find_queue_families(t_Application *app, VkPhysicalDevice device) {
     QueueFamilyIndices indices = {
-        .graphicsFamily = { .value = 0, .has_value = 0 }
+        .graphics_family = { .value = 0, .has_value = 0 },
+        .present_family = { .value = 0, .has_value = 0 }
     };
 
     uint32_t queue_family_count = 0;
@@ -145,10 +146,16 @@ static QueueFamilyIndices find_queue_families(VkPhysicalDevice device) {
 
     for(int i = 0; i < queue_family_count; i++) {
         if(queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphicsFamily.has_value = 1;
-            indices.graphicsFamily.value = i;
+            indices.graphics_family.has_value = 1;
+            indices.graphics_family.value = i;
         }
-        if(indices.graphicsFamily.has_value) {
+        VkBool32 presentSupport = 0;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, app->surface, &presentSupport);
+        if (presentSupport) {
+            indices.present_family.has_value = 1;
+            indices.present_family.value = i;
+        }
+        if(is_complete(&indices)) {
             break;
         }
         i++;
@@ -156,7 +163,7 @@ static QueueFamilyIndices find_queue_families(VkPhysicalDevice device) {
 
     return indices;
 }
-static uint8_t is_device_suitable(VkPhysicalDevice device) {
+static uint8_t is_device_suitable(t_Application *app, VkPhysicalDevice device) {
     //TODO to be added to
     /*VkPhysicalDeviceProperties device_properties;
     VkPhysicalDeviceFeatures device_features;
@@ -165,9 +172,9 @@ static uint8_t is_device_suitable(VkPhysicalDevice device) {
 
     return device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
            device_features.geometryShader;*/
-    QueueFamilyIndices indices = find_queue_families(device);
+    const QueueFamilyIndices indices = find_queue_families(app, device);
 
-    return indices.graphicsFamily.has_value;
+    return is_complete(&indices);
 }
 
 static void pick_physical_device(t_Application *app) {
@@ -185,7 +192,7 @@ static void pick_physical_device(t_Application *app) {
     vkEnumeratePhysicalDevices(app->vk_instance, &device_count, devices);
 
     for(int i = 0; i < device_count; i++) {
-        if(is_device_suitable(devices[i])) {
+        if(is_device_suitable(app, devices[i])) {
             app->physical_device = devices[i];
             break;
         }
@@ -211,38 +218,61 @@ static void app_enable_validation_device(VkDeviceCreateInfo* create_info) {
 
 }
 static void create_logical_device(t_Application *app) {
-    QueueFamilyIndices indices = find_queue_families(app->physical_device);
+    QueueFamilyIndices indices = find_queue_families(app, app->physical_device);
 
-    VkDeviceQueueCreateInfo queue_create_info = {};
-    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = indices.graphicsFamily.value;
-    queue_create_info.queueCount = 1;
-
-    float queuePriority = 1.0f;
-    queue_create_info.pQueuePriorities = &queuePriority;
-
-    VkPhysicalDeviceFeatures device_features = {};
-
-    VkDeviceCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
-    create_info.pQueueCreateInfos = &queue_create_info;
-    create_info.queueCreateInfoCount = 1;
-
-    create_info.pEnabledFeatures = &device_features;
-
-    create_info.enabledExtensionCount = 0;
-
-    app_enable_validation_device(&create_info);
-
-    if (vkCreateDevice(app->physical_device, &create_info, nullptr, &app->device) != VK_SUCCESS) {
-        printf("Failed to create physical device instance!\n");
+    if (!indices.graphics_family.has_value || !indices.present_family.has_value) {
+        printf("Error: Required queue families are not available!\n");
         exit(-1);
     }
 
-    vkGetDeviceQueue(app->device, indices.graphicsFamily.value, 0, &app->graphics_queue);
+    uint32_t unique_queue_families[2] = {indices.graphics_family.value, indices.present_family.value};
+    uint32_t queue_size = (indices.graphics_family.value != indices.present_family.value) ? 2 : 1;
 
+    float queue_priority = 1.0f;
 
+    VkDeviceQueueCreateInfo queue_create_infos[queue_size];
+    VkDeviceQueueCreateInfo base_queue_create_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .pNext = NULL,
+        .flags = 0,
+        .queueCount = 1,
+        .pQueuePriorities = &queue_priority,
+    };
+
+    for (uint32_t i = 0; i < queue_size; i++) {
+        queue_create_infos[i] = base_queue_create_info;
+        queue_create_infos[i].queueFamilyIndex = unique_queue_families[i];
+    }
+
+    // Specify device features
+    VkPhysicalDeviceFeatures device_features = {};
+
+    VkDeviceCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pQueueCreateInfos = queue_create_infos,
+        .queueCreateInfoCount = queue_size,
+        .pEnabledFeatures = &device_features,
+        .enabledExtensionCount = 0,
+    };
+
+    app_enable_validation_device(&create_info);
+
+    if (vkCreateDevice(app->physical_device, &create_info, NULL, &app->device) != VK_SUCCESS) {
+        printf("Error: Failed to create Vulkan logical device!\n");
+        exit(-1);
+    }
+
+    // Retrieve queue handles
+    vkGetDeviceQueue(app->device, indices.graphics_family.value, 0, &app->graphics_queue);
+    vkGetDeviceQueue(app->device, indices.present_family.value, 0, &app->present_queue);
+
+    printf("Logical device created successfully.\n");
+}
+
+static void create_surface(t_Application *app) {
+    if (glfwCreateWindowSurface(app->vk_instance, app->window, nullptr, &app->surface) != VK_SUCCESS) {
+        printf("Failed to create window surface! \n");
+    }
 }
 static void app_vulkan_init(t_Application *app) {
     debug_print_available_extensions();
@@ -250,6 +280,8 @@ static void app_vulkan_init(t_Application *app) {
     app_create_vulkan_inst(app);
 
     setup_debug_messenger(app);
+
+    create_surface(app);
 
     pick_physical_device(app);
 
@@ -278,6 +310,7 @@ void app_end(const t_Application *app) {
         destroy_debug_utils_messenger_ext(app->vk_instance, app->debug_messenger, nullptr);
     }
     vkDestroyDevice(app->device, nullptr);
+    vkDestroySurfaceKHR(app->vk_instance, app->surface, nullptr);
     vkDestroyInstance(app->vk_instance, nullptr);
     glfwDestroyWindow(app->window);
     glfwTerminate();

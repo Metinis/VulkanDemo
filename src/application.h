@@ -17,6 +17,8 @@ typedef struct Application {
     VkPhysicalDevice physical_device;
     VkDevice device;
     VkQueue graphics_queue;
+    VkSurfaceKHR surface;
+    VkQueue present_queue;
 }t_Application;
 
 void app_init(t_Application *app);
