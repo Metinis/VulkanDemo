@@ -7,7 +7,7 @@
 #include "vulkan_debug.h"
 
 
-static bool check_validation_layer_support(const char** validation_layers, size_t validation_size) {
+static uint8_t check_validation_layer_support(const char** validation_layers, size_t validation_size) {
     uint32_t layer_count;
     vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
 
@@ -28,6 +28,32 @@ static bool check_validation_layer_support(const char** validation_layers, size_
         }
     }
     return 1;
+}
+static uint8_t check_device_extension_support(VkPhysicalDevice device) {
+    //set required extensions
+    uint32_t device_ext_num = 1;
+    const char* device_extensions[] = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+    //enumerate and find if they exist
+    uint32_t extension_count;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
+
+    VkExtensionProperties available_extensions[extension_count];
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, available_extensions);
+
+    uint32_t matching_ext_count = 0;
+
+    for(int i = 0; i < extension_count; i++) {
+        printf("\n Ext: %s", available_extensions[i].extensionName);
+        for(int j = 0; j < device_ext_num; j++) {
+            if (strcmp(available_extensions[i].extensionName, device_extensions[j]) == 0) {
+                matching_ext_count++;
+            }
+        }
+    }
+
+    return matching_ext_count == device_ext_num;
 }
 static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*** extensions_ptr,
     const uint8_t enable_validation_layers) {
@@ -174,7 +200,7 @@ static uint8_t is_device_suitable(t_Application *app, VkPhysicalDevice device) {
            device_features.geometryShader;*/
     const QueueFamilyIndices indices = find_queue_families(app, device);
 
-    return is_complete(&indices);
+    return is_complete(&indices) && check_device_extension_support(device);
 }
 
 static void pick_physical_device(t_Application *app) {
@@ -247,12 +273,19 @@ static void create_logical_device(t_Application *app) {
     // Specify device features
     VkPhysicalDeviceFeatures device_features = {};
 
+    //TODO move this to be a variable outside the func
+    uint32_t device_ext_num = 1;
+    const char* device_extensions[] = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pQueueCreateInfos = queue_create_infos,
         .queueCreateInfoCount = queue_size,
         .pEnabledFeatures = &device_features,
-        .enabledExtensionCount = 0,
+        .enabledExtensionCount = device_ext_num,
+        .ppEnabledExtensionNames = device_extensions
     };
 
     app_enable_validation_device(&create_info);
