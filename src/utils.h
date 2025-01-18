@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdlib.h>
+#include <vulkan/vulkan_core.h>
 
 typedef struct {
     uint32_t value;
@@ -19,6 +20,14 @@ typedef struct {
     uint32_t count;
     uint32_t capacity;
 } UniqueQueueSet;
+
+typedef struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceFormatKHR *formats;
+    uint32_t format_size;
+    VkPresentModeKHR *present_modes;
+    uint32_t present_size;
+} SwapChainSupportDetails;
 
 void unique_set_init(UniqueQueueSet *set, uint32_t initial_capacity);
 

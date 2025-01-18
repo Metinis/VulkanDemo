@@ -6,8 +6,99 @@
 #include <string.h>
 #include "vulkan_debug.h"
 
+VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR* capabilities, GLFWwindow* window) {
+    VkExtent2D extent;
 
-static uint8_t check_validation_layer_support(const char** validation_layers, size_t validation_size) {
+    if (capabilities->currentExtent.width != UINT32_MAX) {
+        extent = capabilities->currentExtent;
+    } else {
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+
+        VkExtent2D actual_extent = {
+            (uint32_t)width,
+            (uint32_t)height
+        };
+
+        actual_extent.width = (actual_extent.width < capabilities->minImageExtent.width)
+                                ? capabilities->minImageExtent.width
+                                : (actual_extent.width > capabilities->maxImageExtent.width)
+                                    ? capabilities->maxImageExtent.width
+                                    : actual_extent.width;
+
+        actual_extent.height = (actual_extent.height < capabilities->minImageExtent.height)
+                                ? capabilities->minImageExtent.height
+                                : (actual_extent.height > capabilities->maxImageExtent.height)
+                                    ? capabilities->maxImageExtent.height
+                                    : actual_extent.height;
+
+        extent = actual_extent;
+    }
+
+    return extent;
+}
+
+static VkPresentModeKHR choose_swap_present_mode(const VkPresentModeKHR* available_present_modes, const size_t available_present_size) {
+    for(size_t i = 0; i < available_present_size; i++) {
+        if(available_present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return available_present_modes[i];
+        }
+    }
+
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+static VkSurfaceFormatKHR choose_swap_surface_format(const VkSurfaceFormatKHR* available_formats, const size_t available_format_size) {
+    for(size_t i = 0; i < available_format_size; i++) {
+        if(available_formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && available_formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            return available_formats[i];
+        }
+    }
+    return available_formats[0];
+}
+static void query_swap_chain_support_details(SwapChainSupportDetails *details, const t_Application *app, const VkPhysicalDevice device) {
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, app->surface, &details->capabilities);
+
+    uint32_t format_count = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, app->surface, &format_count, nullptr);
+
+    if (format_count != 0) {
+        details->formats = (VkSurfaceFormatKHR *)malloc(format_count * sizeof(VkSurfaceFormatKHR));
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, app->surface, &format_count, details->formats);
+    }
+    else {
+        details->formats = NULL;
+    }
+    details->format_size = format_count;
+
+
+    uint32_t present_mode_count = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, app->surface, &present_mode_count, nullptr);
+
+    if (present_mode_count != 0) {
+        details->present_modes = (VkPresentModeKHR *)malloc(present_mode_count * sizeof(VkPresentModeKHR));
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, app->surface, &present_mode_count, details->present_modes);
+    }
+    else {
+        details->present_modes = NULL;
+    }
+    details->present_size = present_mode_count;
+
+
+}
+static void free_swap_chain_support(SwapChainSupportDetails *details) {
+    if(details->formats) {
+        free(details->formats);
+        details->formats = NULL;
+    }
+    if(details->present_modes) {
+        free(details->present_modes);
+        details->present_modes = NULL;
+    }
+}
+
+
+static uint8_t check_validation_layer_support(const char** validation_layers, const size_t validation_size) {
     uint32_t layer_count;
     vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
 
@@ -29,12 +120,7 @@ static uint8_t check_validation_layer_support(const char** validation_layers, si
     }
     return 1;
 }
-static uint8_t check_device_extension_support(VkPhysicalDevice device) {
-    //set required extensions
-    uint32_t device_ext_num = 1;
-    const char* device_extensions[] = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
+static uint8_t check_device_extension_support(const t_Application *app, const VkPhysicalDevice device) {
     //enumerate and find if they exist
     uint32_t extension_count;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
@@ -44,16 +130,15 @@ static uint8_t check_device_extension_support(VkPhysicalDevice device) {
 
     uint32_t matching_ext_count = 0;
 
-    for(int i = 0; i < extension_count; i++) {
-        printf("\n Ext: %s", available_extensions[i].extensionName);
-        for(int j = 0; j < device_ext_num; j++) {
-            if (strcmp(available_extensions[i].extensionName, device_extensions[j]) == 0) {
+    for(size_t i = 0; i < extension_count; i++) {
+        for(size_t j = 0; j < app->device_ext_size; j++) {
+            if (strcmp(available_extensions[i].extensionName, app->device_extensions[j]) == 0) {
                 matching_ext_count++;
             }
         }
     }
 
-    return matching_ext_count == device_ext_num;
+    return matching_ext_count == app->device_ext_size;
 }
 static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*** extensions_ptr,
     const uint8_t enable_validation_layers) {
@@ -75,7 +160,7 @@ static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*
 
     const char** required_extensions = (const char**)malloc(extension_count * sizeof(const char*));
 
-    for(uint32_t i = 0; i < glfw_extensionCount; i++) {
+    for(size_t i = 0; i < glfw_extensionCount; i++) {
         required_extensions[i] = glfw_extensions[i];
     }
 
@@ -94,15 +179,11 @@ static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*
 
     *extensions_ptr = required_extensions;
 }
-static void app_enable_validation(VkInstanceCreateInfo* create_info) {
-    const char* validation_layers[] = {
-         "VK_LAYER_KHRONOS_validation"
-     };
-    const uint32_t validation_size = 1;
+static void app_enable_validation(const t_Application *app, VkInstanceCreateInfo* create_info) {
 
-    if (check_validation_layer_support(validation_layers, validation_size)) {
-        create_info->enabledLayerCount = (uint32_t)(validation_size);
-        create_info->ppEnabledLayerNames = validation_layers;
+    if (check_validation_layer_support(app->validation_layers, app->validation_size)) {
+        create_info->enabledLayerCount = (uint32_t)(app->validation_size);
+        create_info->ppEnabledLayerNames = app->validation_layers;
     } else {
         create_info->enabledLayerCount = 0;
         create_info->ppEnabledLayerNames = nullptr;
@@ -132,7 +213,7 @@ static void app_create_vulkan_inst(t_Application *app) {
     VkDebugUtilsMessengerCreateInfoEXT debug_create_info = {};
 
     if(app->enable_validation_layers) {
-        app_enable_validation(&create_info);
+        app_enable_validation(app, &create_info);
 
         populate_debug_messenger_create_info(&debug_create_info);
         create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debug_create_info;
@@ -158,7 +239,7 @@ static void app_create_vulkan_inst(t_Application *app) {
         printf("Failed to create Vulkan instance. VkResult: %d\n", result);
     }
 }
-static QueueFamilyIndices find_queue_families(t_Application *app, VkPhysicalDevice device) {
+static QueueFamilyIndices find_queue_families(const t_Application *app, const VkPhysicalDevice device) {
     QueueFamilyIndices indices = {
         .graphics_family = { .value = 0, .has_value = 0 },
         .present_family = { .value = 0, .has_value = 0 }
@@ -170,14 +251,14 @@ static QueueFamilyIndices find_queue_families(t_Application *app, VkPhysicalDevi
     VkQueueFamilyProperties queue_families[queue_family_count];
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families);
 
-    for(int i = 0; i < queue_family_count; i++) {
+    for(size_t i = 0; i < queue_family_count; i++) {
         if(queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphics_family.has_value = 1;
             indices.graphics_family.value = i;
         }
-        VkBool32 presentSupport = 0;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, app->surface, &presentSupport);
-        if (presentSupport) {
+        VkBool32 present_support = 0;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, app->surface, &present_support);
+        if (present_support) {
             indices.present_family.has_value = 1;
             indices.present_family.value = i;
         }
@@ -189,18 +270,80 @@ static QueueFamilyIndices find_queue_families(t_Application *app, VkPhysicalDevi
 
     return indices;
 }
-static uint8_t is_device_suitable(t_Application *app, VkPhysicalDevice device) {
-    //TODO to be added to
-    /*VkPhysicalDeviceProperties device_properties;
-    VkPhysicalDeviceFeatures device_features;
-    vkGetPhysicalDeviceProperties(device, &device_properties);
-    vkGetPhysicalDeviceFeatures(device, &device_features);
+static void create_swap_chain(t_Application *app) {
+    SwapChainSupportDetails swap_details = {};
 
-    return device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
-           device_features.geometryShader;*/
+    query_swap_chain_support_details(&swap_details, app, app->physical_device);
+
+    const VkSurfaceFormatKHR surfaceFormat = choose_swap_surface_format(swap_details.formats, swap_details.format_size);
+    const VkPresentModeKHR presentMode = choose_swap_present_mode(swap_details.present_modes, swap_details.present_size);
+    const VkExtent2D extent = choose_swap_extent(&swap_details.capabilities, app->window);
+
+    uint32_t image_count = swap_details.capabilities.minImageCount + 1;
+
+    if (swap_details.capabilities.maxImageCount > 0 && image_count > swap_details.capabilities.maxImageCount) {
+        image_count = swap_details.capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface = app->surface,
+        .minImageCount = image_count,
+        .imageFormat = surfaceFormat.format,
+        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+        };
+
+    QueueFamilyIndices indices = find_queue_families(app, app->physical_device);
+    const uint32_t queueFamilyIndices[] = {indices.graphics_family.value, indices.present_family.value};
+
+    if (indices.graphics_family.value != indices.present_family.value) {
+        create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        create_info.queueFamilyIndexCount = 2;
+        create_info.pQueueFamilyIndices = queueFamilyIndices;
+    } else {
+        create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        create_info.queueFamilyIndexCount = 0;
+        create_info.pQueueFamilyIndices = nullptr;
+    }
+
+    create_info.preTransform = swap_details.capabilities.currentTransform;
+    create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    create_info.presentMode = presentMode;
+    create_info.clipped = VK_TRUE;
+
+    create_info.oldSwapchain = VK_NULL_HANDLE;
+
+    if (vkCreateSwapchainKHR(app->device, &create_info, nullptr, &app->swap_chain) != VK_SUCCESS) {
+        printf("\nfailed to create swap chain!");
+        exit(-1);
+    }
+
+    vkGetSwapchainImagesKHR(app->device, app->swap_chain, &image_count, nullptr);
+    app->swap_chain_images = (VkImage*)malloc(image_count * sizeof(VkImage));
+    vkGetSwapchainImagesKHR(app->device, app->swap_chain, &image_count, app->swap_chain_images);
+
+    app->swap_chain_image_format = surfaceFormat.format;
+    app->swap_chain_extent = extent;
+
+    free_swap_chain_support(&swap_details);
+
+}
+static uint8_t is_device_suitable(const t_Application *app, const VkPhysicalDevice device) {
     const QueueFamilyIndices indices = find_queue_families(app, device);
 
-    return is_complete(&indices) && check_device_extension_support(device);
+    //check swap chain support
+
+    SwapChainSupportDetails swap_details = {};
+    query_swap_chain_support_details(&swap_details, app, device);
+
+    const uint8_t swap_chain_adequate = swap_details.formats && swap_details.present_modes;
+
+    free_swap_chain_support(&swap_details);
+
+    return is_complete(&indices) && check_device_extension_support(app, device) && swap_chain_adequate;
 }
 
 static void pick_physical_device(t_Application *app) {
@@ -217,7 +360,7 @@ static void pick_physical_device(t_Application *app) {
     VkPhysicalDevice devices[device_count];
     vkEnumeratePhysicalDevices(app->vk_instance, &device_count, devices);
 
-    for(int i = 0; i < device_count; i++) {
+    for(size_t i = 0; i < device_count; i++) {
         if(is_device_suitable(app, devices[i])) {
             app->physical_device = devices[i];
             break;
@@ -228,15 +371,11 @@ static void pick_physical_device(t_Application *app) {
         exit(-1);
     }
 }
-static void app_enable_validation_device(VkDeviceCreateInfo* create_info) {
-    const char* validation_layers[] = {
-        "VK_LAYER_KHRONOS_validation"
-    };
-    const uint32_t validation_size = 1;
+static void app_enable_validation_device(const t_Application *app, VkDeviceCreateInfo* create_info) {
 
-    if (check_validation_layer_support(validation_layers, validation_size)) {
-        create_info->enabledLayerCount = (uint32_t)(validation_size);
-        create_info->ppEnabledLayerNames = validation_layers;
+    if (check_validation_layer_support(app->validation_layers, app->validation_size)) {
+        create_info->enabledLayerCount = (uint32_t)(app->validation_size);
+        create_info->ppEnabledLayerNames = app->validation_layers;
     } else {
         create_info->enabledLayerCount = 0;
         create_info->ppEnabledLayerNames = nullptr;
@@ -244,20 +383,20 @@ static void app_enable_validation_device(VkDeviceCreateInfo* create_info) {
 
 }
 static void create_logical_device(t_Application *app) {
-    QueueFamilyIndices indices = find_queue_families(app, app->physical_device);
+    const QueueFamilyIndices indices = find_queue_families(app, app->physical_device);
 
     if (!indices.graphics_family.has_value || !indices.present_family.has_value) {
         printf("Error: Required queue families are not available!\n");
         exit(-1);
     }
 
-    uint32_t unique_queue_families[2] = {indices.graphics_family.value, indices.present_family.value};
-    uint32_t queue_size = (indices.graphics_family.value != indices.present_family.value) ? 2 : 1;
+    const uint32_t unique_queue_families[2] = {indices.graphics_family.value, indices.present_family.value};
+    const uint32_t queue_size = (indices.graphics_family.value != indices.present_family.value) ? 2 : 1;
 
     float queue_priority = 1.0f;
 
     VkDeviceQueueCreateInfo queue_create_infos[queue_size];
-    VkDeviceQueueCreateInfo base_queue_create_info = {
+    const VkDeviceQueueCreateInfo base_queue_create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         .pNext = NULL,
         .flags = 0,
@@ -274,7 +413,7 @@ static void create_logical_device(t_Application *app) {
     VkPhysicalDeviceFeatures device_features = {};
 
     //TODO move this to be a variable outside the func
-    uint32_t device_ext_num = 1;
+    const uint32_t device_ext_num = 1;
     const char* device_extensions[] = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
@@ -288,10 +427,10 @@ static void create_logical_device(t_Application *app) {
         .ppEnabledExtensionNames = device_extensions
     };
 
-    app_enable_validation_device(&create_info);
+    app_enable_validation_device(app, &create_info);
 
     if (vkCreateDevice(app->physical_device, &create_info, NULL, &app->device) != VK_SUCCESS) {
-        printf("Error: Failed to create Vulkan logical device!\n");
+        printf("\nError: Failed to create Vulkan logical device!");
         exit(-1);
     }
 
@@ -299,12 +438,12 @@ static void create_logical_device(t_Application *app) {
     vkGetDeviceQueue(app->device, indices.graphics_family.value, 0, &app->graphics_queue);
     vkGetDeviceQueue(app->device, indices.present_family.value, 0, &app->present_queue);
 
-    printf("Logical device created successfully.\n");
+    printf("\nLogical device created successfully.");
 }
 
 static void create_surface(t_Application *app) {
     if (glfwCreateWindowSurface(app->vk_instance, app->window, nullptr, &app->surface) != VK_SUCCESS) {
-        printf("Failed to create window surface! \n");
+        printf("\nFailed to create window surface! \n");
     }
 }
 static void app_vulkan_init(t_Application *app) {
@@ -319,6 +458,8 @@ static void app_vulkan_init(t_Application *app) {
     pick_physical_device(app);
 
     create_logical_device(app);
+
+    create_swap_chain(app);
 }
 
 
@@ -331,7 +472,28 @@ void app_init(t_Application *app) {
 
     app->window = glfwCreateWindow(1280,720, "VulkanDemo", nullptr, nullptr);
 
+    //setup validation list
+
+    const char *default_device_extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    app->device_ext_size = 1;
+    app->device_extensions = malloc(app->device_ext_size * sizeof(char *));
+    for (size_t i = 0; i < app->device_ext_size; i++) {
+        app->device_extensions[i] = default_device_extensions[i];
+    }
+
+    //setup device extension list
+
+    const char *default_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
+    app->validation_size = 1;
+    app->validation_layers = malloc(app->validation_size * sizeof(char *));
+    for (size_t i = 0; i < app->device_ext_size; i++) {
+        app->validation_layers[i] = default_validation_layers[i];
+    }
+
     app_vulkan_init(app);
+
+    free(app->device_extensions);
+    free(app->validation_layers);
 }
 void app_run(const t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
@@ -342,6 +504,8 @@ void app_end(const t_Application *app) {
     if (app->enable_validation_layers) {
         destroy_debug_utils_messenger_ext(app->vk_instance, app->debug_messenger, nullptr);
     }
+    vkDestroySwapchainKHR(app->device, app->swap_chain, nullptr);
+    free(app->swap_chain_images);
     vkDestroyDevice(app->device, nullptr);
     vkDestroySurfaceKHR(app->vk_instance, app->surface, nullptr);
     vkDestroyInstance(app->vk_instance, nullptr);

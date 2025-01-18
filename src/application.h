@@ -14,11 +14,19 @@ typedef struct Application {
     VkInstance vk_instance;
     VkDebugUtilsMessengerEXT debug_messenger;
     uint8_t enable_validation_layers;
+    const char **validation_layers;
+    uint32_t validation_size;
+    const char **device_extensions;
+    uint32_t device_ext_size;
     VkPhysicalDevice physical_device;
     VkDevice device;
     VkQueue graphics_queue;
     VkSurfaceKHR surface;
     VkQueue present_queue;
+    VkSwapchainKHR swap_chain;
+    VkImage* swap_chain_images;
+    VkFormat swap_chain_image_format;
+    VkExtent2D swap_chain_extent;
 }t_Application;
 
 void app_init(t_Application *app);
