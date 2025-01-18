@@ -26,7 +26,9 @@ typedef struct Application {
     VkSwapchainKHR swap_chain;
     VkImage* swap_chain_images;
     VkFormat swap_chain_image_format;
+    uint32_t swap_chain_image_count;
     VkExtent2D swap_chain_extent;
+    VkImageView* swap_chain_image_views;
 }t_Application;
 
 void app_init(t_Application *app);

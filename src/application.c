@@ -279,16 +279,16 @@ static void create_swap_chain(t_Application *app) {
     const VkPresentModeKHR presentMode = choose_swap_present_mode(swap_details.present_modes, swap_details.present_size);
     const VkExtent2D extent = choose_swap_extent(&swap_details.capabilities, app->window);
 
-    uint32_t image_count = swap_details.capabilities.minImageCount + 1;
+    app->swap_chain_image_count = swap_details.capabilities.minImageCount + 1;
 
-    if (swap_details.capabilities.maxImageCount > 0 && image_count > swap_details.capabilities.maxImageCount) {
-        image_count = swap_details.capabilities.maxImageCount;
+    if (swap_details.capabilities.maxImageCount > 0 && app->swap_chain_image_count > swap_details.capabilities.maxImageCount) {
+        app->swap_chain_image_count = swap_details.capabilities.maxImageCount;
     }
 
     VkSwapchainCreateInfoKHR create_info = {
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = app->surface,
-        .minImageCount = image_count,
+        .minImageCount = app->swap_chain_image_count,
         .imageFormat = surfaceFormat.format,
         .imageColorSpace = surfaceFormat.colorSpace,
         .imageExtent = extent,
@@ -321,9 +321,9 @@ static void create_swap_chain(t_Application *app) {
         exit(-1);
     }
 
-    vkGetSwapchainImagesKHR(app->device, app->swap_chain, &image_count, nullptr);
-    app->swap_chain_images = (VkImage*)malloc(image_count * sizeof(VkImage));
-    vkGetSwapchainImagesKHR(app->device, app->swap_chain, &image_count, app->swap_chain_images);
+    vkGetSwapchainImagesKHR(app->device, app->swap_chain, &app->swap_chain_image_count, nullptr);
+    app->swap_chain_images = (VkImage*)malloc(app->swap_chain_image_count * sizeof(VkImage));
+    vkGetSwapchainImagesKHR(app->device, app->swap_chain, &app->swap_chain_image_count, app->swap_chain_images);
 
     app->swap_chain_image_format = surfaceFormat.format;
     app->swap_chain_extent = extent;
@@ -446,6 +446,31 @@ static void create_surface(t_Application *app) {
         printf("\nFailed to create window surface! \n");
     }
 }
+static void create_image_views(t_Application *app) {
+    app->swap_chain_image_views = (VkImageView*)malloc(app->swap_chain_image_count * sizeof(VkImageView));
+    for(size_t i = 0; i < app->swap_chain_image_count; i++) {
+        VkImageViewCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = app->swap_chain_images[i],
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = app->swap_chain_image_format,
+        .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .subresourceRange.baseMipLevel = 0,
+        .subresourceRange.levelCount = 1,
+        .subresourceRange.baseArrayLayer = 0,
+        .subresourceRange.layerCount = 1
+            };
+
+        if (vkCreateImageView(app->device, &create_info, nullptr, &app->swap_chain_image_views[i]) != VK_SUCCESS) {
+            printf("\nFailed to create image views!");
+            exit(-1);
+        }
+    }
+}
 static void app_vulkan_init(t_Application *app) {
     debug_print_available_extensions();
 
@@ -501,6 +526,12 @@ void app_run(const t_Application *app) {
     }
 }
 void app_end(const t_Application *app) {
+
+    for(size_t i = 0; i < app->swap_chain_image_count; i++) {
+        vkDestroyImageView(app->device, app->swap_chain_image_views[i], nullptr);
+    }
+    free(app->swap_chain_image_views);
+
     if (app->enable_validation_layers) {
         destroy_debug_utils_messenger_ext(app->vk_instance, app->debug_messenger, nullptr);
     }
