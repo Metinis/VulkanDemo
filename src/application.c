@@ -485,6 +485,8 @@ static void app_vulkan_init(t_Application *app) {
     create_logical_device(app);
 
     create_swap_chain(app);
+
+    create_image_views(app);
 }
 
 
