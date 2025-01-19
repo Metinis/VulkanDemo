@@ -29,6 +29,10 @@ typedef struct Application {
     VkPipeline graphics_pipeline;
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
+    VkSemaphore image_available_semaphore;
+    VkSemaphore render_finished_semaphore;
+    VkFence in_flight_fence;
+
 }t_Application;
 
 QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device);
