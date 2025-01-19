@@ -335,9 +335,9 @@ static VkShaderModule create_shader_module(t_Application *app, const unsigned ch
 
 static void create_graphics_pipeline(t_Application *app) {
     size_t vert_file_size;
-    unsigned char* vert_shader_code = read_file("../resources/shader/vert.spv", &vert_file_size);
+    unsigned char* vert_shader_code = read_file("../resources/shader/shader.vert.spv", &vert_file_size);
     size_t frag_file_size;
-    unsigned char* frag_shader_code = read_file("../resources/shader/frag.spv", &frag_file_size);
+    unsigned char* frag_shader_code = read_file("../resources/shader/shader.frag.spv", &frag_file_size);
 
     const VkShaderModule vert_shader_module = create_shader_module(app, vert_shader_code, vert_file_size);
     free(vert_shader_code);
@@ -360,8 +360,7 @@ static void create_graphics_pipeline(t_Application *app) {
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vert_shader_stage_info, frag_shader_stage_info};
 
-    vkDestroyShaderModule(app->device, vert_shader_module, nullptr);
-    vkDestroyShaderModule(app->device, frag_shader_module, nullptr);
+
 
     const uint32_t dynamic_state_size = 2;
     const VkDynamicState dynamic_states[dynamic_state_size] = {
@@ -470,6 +469,29 @@ static void create_graphics_pipeline(t_Application *app) {
         printf("Failed to create pipeline layout! \n");
     }
 
+    VkGraphicsPipelineCreateInfo pipeline_info = {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .stageCount = 2,
+        .pStages = shaderStages,
+        .pVertexInputState = &vertex_input_info,
+        .pInputAssemblyState = &input_assembly,
+        .pViewportState = &viewport_state,
+        .pRasterizationState = &rasterizer,
+        .pMultisampleState = &multi_sampling,
+        .pDepthStencilState = nullptr, // Optional
+        .pColorBlendState = &color_blending,
+        .pDynamicState = &dynamic_state,
+        .layout = app->pipeline_layout,
+        .renderPass = app->render_pass,
+        .subpass = 0,
+        .basePipelineHandle = VK_NULL_HANDLE,
+        .basePipelineIndex = -1
+    };
+    if (vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &app->graphics_pipeline) != VK_SUCCESS) {
+        printf("Failed To Create Graphics Pipeline! \n");
+    }
+    vkDestroyShaderModule(app->device, vert_shader_module, nullptr);
+    vkDestroyShaderModule(app->device, frag_shader_module, nullptr);
 
 }
 static void app_create_swap_chain(t_Application *app) {
@@ -573,6 +595,7 @@ void app_run(const t_Application *app) {
     }
 }
 void app_end(const t_Application *app) {
+    vkDestroyPipeline(app->device, app->graphics_pipeline, nullptr);
     vkDestroyPipelineLayout(app->device, app->pipeline_layout, nullptr);
     vkDestroyRenderPass(app->device, app->render_pass, nullptr);
 
