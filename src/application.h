@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <cglm/mat4.h>
 #include <vulkan/vulkan_core.h>
-
+#include "swap_chain.h"
 #include "utils.h"
 
 typedef struct GLFWwindow GLFWwindow;
@@ -23,13 +23,10 @@ typedef struct Application {
     VkQueue graphics_queue;
     VkSurfaceKHR surface;
     VkQueue present_queue;
-    VkSwapchainKHR swap_chain;
-    VkImage* swap_chain_images;
-    VkFormat swap_chain_image_format;
-    uint32_t swap_chain_image_count;
-    VkExtent2D swap_chain_extent;
-    VkImageView* swap_chain_image_views;
+    SwapChain swap_chain;
 }t_Application;
+
+QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device);
 
 void app_init(t_Application *app);
 

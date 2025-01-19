@@ -20,7 +20,9 @@ add_executable(VulkanDemo src/main.c
         src/vulkan_debug.c
         src/vulkan_debug.h
         src/utils.c
-        src/utils.h)
+        src/utils.h
+        src/swap_chain.c
+        src/swap_chain.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)
