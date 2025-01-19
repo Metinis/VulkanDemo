@@ -10,6 +10,7 @@ typedef struct SwapChain {
     uint32_t image_count;
     VkExtent2D extent;
     VkImageView* image_views;
+    VkFramebuffer* framebuffers;
 }SwapChain;
 
 void swap_chain_query_support_details(SwapChainSupportDetails *details, VkSurfaceKHR *surface, const VkPhysicalDevice *device);

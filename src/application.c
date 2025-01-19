@@ -534,6 +534,28 @@ static void create_render_pass(t_Application *app) {
         printf("Failed to create render pass! \n");
     }
 }
+static void create_frame_buffers(t_Application *app) {
+    app->swap_chain.framebuffers = (VkFramebuffer*)malloc(app->swap_chain.image_count * sizeof(VkFramebuffer));
+    for (size_t i = 0; i < app->swap_chain.image_count; i++) {
+        VkImageView attachments[] = {
+            app->swap_chain.image_views[i]
+        };
+
+        VkFramebufferCreateInfo framebufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = app->render_pass,
+            .attachmentCount = 1,
+            .pAttachments = attachments,
+            .width = app->swap_chain.extent.width,
+            .height = app->swap_chain.extent.height,
+            .layers = 1,
+        };
+
+        if (vkCreateFramebuffer(app->device, &framebufferInfo, nullptr, &app->swap_chain.framebuffers[i]) != VK_SUCCESS) {
+            printf("Failed to create a framebuffer! \n");
+        }
+    }
+}
 static void app_vulkan_init(t_Application *app) {
     debug_print_available_extensions();
 
@@ -554,6 +576,8 @@ static void app_vulkan_init(t_Application *app) {
     create_render_pass(app);
 
     create_graphics_pipeline(app);
+
+    create_frame_buffers(app);
 }
 
 
@@ -595,6 +619,10 @@ void app_run(const t_Application *app) {
     }
 }
 void app_end(const t_Application *app) {
+    for(size_t i = 0; i < app->swap_chain.image_count; i++) {
+        vkDestroyFramebuffer(app->device, app->swap_chain.framebuffers[i], nullptr);
+    }
+    free(app->swap_chain.framebuffers);
     vkDestroyPipeline(app->device, app->graphics_pipeline, nullptr);
     vkDestroyPipelineLayout(app->device, app->pipeline_layout, nullptr);
     vkDestroyRenderPass(app->device, app->render_pass, nullptr);
