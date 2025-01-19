@@ -24,6 +24,7 @@ typedef struct Application {
     VkSurfaceKHR surface;
     VkQueue present_queue;
     SwapChain swap_chain;
+    VkPipelineLayout pipeline_layout;
 }t_Application;
 
 QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device);
