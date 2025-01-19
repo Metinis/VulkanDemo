@@ -24,6 +24,7 @@ typedef struct Application {
     VkSurfaceKHR surface;
     VkQueue present_queue;
     SwapChain swap_chain;
+    VkRenderPass render_pass;
     VkPipelineLayout pipeline_layout;
 }t_Application;
 

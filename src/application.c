@@ -477,6 +477,41 @@ static void app_create_swap_chain(t_Application *app) {
 
     app->swap_chain = swap_chain_create(&app->surface, &app->device, &app->physical_device, app->window, &indices);
 }
+static void create_render_pass(t_Application *app) {
+    VkAttachmentDescription color_attachment = {
+        .format = app->swap_chain.image_format,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+
+    VkAttachmentReference color_attachment_ref = {
+        .attachment = 0,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+
+    VkSubpassDescription subpass = {
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &color_attachment_ref
+    };
+
+    VkRenderPassCreateInfo render_pass_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .attachmentCount = 1,
+        .pAttachments = &color_attachment,
+        .subpassCount = 1,
+        .pSubpasses = &subpass
+    };
+
+    if (vkCreateRenderPass(app->device, &render_pass_info, nullptr, &app->render_pass) != VK_SUCCESS) {
+        printf("Failed to create render pass! \n");
+    }
+}
 static void app_vulkan_init(t_Application *app) {
     debug_print_available_extensions();
 
@@ -537,6 +572,7 @@ void app_run(const t_Application *app) {
 }
 void app_end(const t_Application *app) {
     vkDestroyPipelineLayout(app->device, app->pipeline_layout, nullptr);
+    vkDestroyRenderPass(app->device, app->render_pass, nullptr);
 
     for(size_t i = 0; i < app->swap_chain.image_count; i++) {
         vkDestroyImageView(app->device, app->swap_chain.image_views[i], nullptr);
