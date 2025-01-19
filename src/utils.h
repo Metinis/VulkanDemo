@@ -13,8 +13,6 @@ typedef struct QueueFamilyIndices {
 
 }QueueFamilyIndices;
 
-uint8_t is_complete(const QueueFamilyIndices* indices);
-
 typedef struct {
     uint32_t *data;
     uint32_t count;
@@ -29,10 +27,6 @@ typedef struct SwapChainSupportDetails {
     uint32_t present_size;
 } SwapChainSupportDetails;
 
-void unique_set_init(UniqueQueueSet *set, uint32_t initial_capacity);
+uint8_t is_complete(const QueueFamilyIndices* indices);
 
-void unique_set_free(UniqueQueueSet *set);
-
-int unique_set_contains(UniqueQueueSet *set, uint32_t value);
-
-void unique_set_add(UniqueQueueSet *set, uint32_t value);
+unsigned char* read_file(const char* filename, size_t* file_size);

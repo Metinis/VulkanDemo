@@ -471,6 +471,49 @@ static void create_image_views(t_Application *app) {
         }
     }
 }
+static VkShaderModule create_shader_module(t_Application *app, const unsigned char* code, size_t file_size) {
+    const VkShaderModuleCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = file_size,
+        .pCode = (const uint32_t*)(code)
+    };
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(app->device, &create_info, nullptr, &shaderModule) != VK_SUCCESS) {
+        printf("Failed to create a shader module! \n");
+    }
+    return shaderModule;
+}
+
+static void create_graphics_pipeline(t_Application *app) {
+    size_t vert_file_size;
+    unsigned char* vert_shader_code = read_file("../resources/shader/vert.spv", &vert_file_size);
+    size_t frag_file_size;
+    unsigned char* frag_shader_code = read_file("../resources/shader/frag.spv", &frag_file_size);
+
+    const VkShaderModule vert_shader_module = create_shader_module(app, vert_shader_code, vert_file_size);
+    free(vert_shader_code);
+
+    const VkShaderModule frag_shader_module = create_shader_module(app, frag_shader_code, frag_file_size);
+    free(frag_shader_code);
+
+    const VkPipelineShaderStageCreateInfo vert_shader_stage_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+        .module = vert_shader_module,
+        .pName = "main"
+    };
+    const VkPipelineShaderStageCreateInfo frag_shader_stage_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .module = frag_shader_module,
+        .pName = "main"
+    };
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vert_shader_stage_info, frag_shader_stage_info};
+
+    vkDestroyShaderModule(app->device, vert_shader_module, nullptr);
+    vkDestroyShaderModule(app->device, frag_shader_module, nullptr);
+}
 static void app_vulkan_init(t_Application *app) {
     debug_print_available_extensions();
 
@@ -487,6 +530,8 @@ static void app_vulkan_init(t_Application *app) {
     create_swap_chain(app);
 
     create_image_views(app);
+
+    create_graphics_pipeline(app);
 }
 
 
