@@ -529,6 +529,8 @@ static void app_vulkan_init(t_Application *app) {
 
     create_image_views(app);
 
+    create_render_pass(app);
+
     create_graphics_pipeline(app);
 }
 
