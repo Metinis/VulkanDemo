@@ -8,7 +8,7 @@
 
 static uint8_t check_validation_layer_support(const char** validation_layers, const size_t validation_size) {
     uint32_t layer_count;
-    vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+    vkEnumerateInstanceLayerProperties(&layer_count, NULL);
 
     VkLayerProperties available_layers[layer_count];
     vkEnumerateInstanceLayerProperties(&layer_count, available_layers);
@@ -31,10 +31,10 @@ static uint8_t check_validation_layer_support(const char** validation_layers, co
 static uint8_t check_device_extension_support(const t_Application *app, const VkPhysicalDevice device) {
     //enumerate and find if they exist
     uint32_t extension_count;
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
+    vkEnumerateDeviceExtensionProperties(device, NULL, &extension_count, NULL);
 
     VkExtensionProperties available_extensions[extension_count];
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, available_extensions);
+    vkEnumerateDeviceExtensionProperties(device, NULL, &extension_count, available_extensions);
 
     uint32_t matching_ext_count = 0;
 
@@ -94,7 +94,7 @@ static void app_enable_validation(const t_Application *app, VkInstanceCreateInfo
         create_info->ppEnabledLayerNames = app->validation_layers;
     } else {
         create_info->enabledLayerCount = 0;
-        create_info->ppEnabledLayerNames = nullptr;
+        create_info->ppEnabledLayerNames = NULL;
     }
 
 }
@@ -132,7 +132,7 @@ static void app_create_vulkan_inst(t_Application *app) {
     const char** extensions = NULL;
     app_enable_extensions(&create_info, &extensions, app->enable_validation_layers);
 
-    const VkResult result = vkCreateInstance(&create_info, nullptr, &app->vk_instance);
+    const VkResult result = vkCreateInstance(&create_info, NULL, &app->vk_instance);
 
     if(app->enable_validation_layers) {
         printf("Enabled Vulkan extensions:\n");
@@ -147,14 +147,14 @@ static void app_create_vulkan_inst(t_Application *app) {
         printf("Failed to create Vulkan instance. VkResult: %d\n", result);
     }
 }
-QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device) {
-    QueueFamilyIndices indices = {
+t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device) {
+    t_QueueFamilyIndices indices = {
         .graphics_family = { .value = 0, .has_value = 0 },
         .present_family = { .value = 0, .has_value = 0 }
     };
 
     uint32_t queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(*device, &queue_family_count, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(*device, &queue_family_count, NULL);
 
     VkQueueFamilyProperties queue_families[queue_family_count];
     vkGetPhysicalDeviceQueueFamilyProperties(*device, &queue_family_count, queue_families);
@@ -180,11 +180,11 @@ QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const Vk
 }
 
 static uint8_t is_device_suitable(t_Application *app, const VkPhysicalDevice *device) {
-    const QueueFamilyIndices indices = app_find_queue_families(&app->surface, device);
+    const t_QueueFamilyIndices indices = app_find_queue_families(&app->surface, device);
 
     //check swap chain support
 
-    SwapChainSupportDetails swap_details = {};
+    t_SwapChainSupportDetails swap_details = {};
     swap_chain_query_support_details(&swap_details, &app->surface, device);
 
     const uint8_t swap_chain_adequate = swap_details.formats && swap_details.present_modes;
@@ -199,7 +199,7 @@ static void pick_physical_device(t_Application *app) {
     app->physical_device = VK_NULL_HANDLE;
 
     uint32_t device_count = 0;
-    vkEnumeratePhysicalDevices(app->vk_instance, &device_count, nullptr);
+    vkEnumeratePhysicalDevices(app->vk_instance, &device_count, NULL);
 
     if (device_count == 0) {
         printf("Failed to find device with vulkan support!\n");
@@ -227,12 +227,12 @@ static void app_enable_validation_device(const t_Application *app, VkDeviceCreat
         create_info->ppEnabledLayerNames = app->validation_layers;
     } else {
         create_info->enabledLayerCount = 0;
-        create_info->ppEnabledLayerNames = nullptr;
+        create_info->ppEnabledLayerNames = NULL;
     }
 
 }
 static void create_logical_device(t_Application *app) {
-    const QueueFamilyIndices indices = app_find_queue_families(&app->surface, &app->physical_device);
+    const t_QueueFamilyIndices indices = app_find_queue_families(&app->surface, &app->physical_device);
 
     if (!indices.graphics_family.has_value || !indices.present_family.has_value) {
         printf("Error: Required queue families are not available!\n");
@@ -261,19 +261,13 @@ static void create_logical_device(t_Application *app) {
     // Specify device features
     VkPhysicalDeviceFeatures device_features = {};
 
-    //TODO move this to be a variable outside the func
-    const uint32_t device_ext_num = 1;
-    const char* device_extensions[] = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
-
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pQueueCreateInfos = queue_create_infos,
         .queueCreateInfoCount = queue_size,
         .pEnabledFeatures = &device_features,
-        .enabledExtensionCount = device_ext_num,
-        .ppEnabledExtensionNames = device_extensions
+        .enabledExtensionCount = app->device_ext_size,
+        .ppEnabledExtensionNames = app->device_extensions
     };
 
     app_enable_validation_device(app, &create_info);
@@ -291,7 +285,7 @@ static void create_logical_device(t_Application *app) {
 }
 
 static void create_surface(t_Application *app) {
-    if (glfwCreateWindowSurface(app->vk_instance, app->window, nullptr, &app->surface) != VK_SUCCESS) {
+    if (glfwCreateWindowSurface(app->vk_instance, app->window, NULL, &app->surface) != VK_SUCCESS) {
         printf("\nFailed to create window surface! \n");
     }
 }
@@ -314,20 +308,20 @@ static void create_image_views(t_Application *app) {
         .subresourceRange.layerCount = 1
             };
 
-        if (vkCreateImageView(app->device, &create_info, nullptr, &app->swap_chain.image_views[i]) != VK_SUCCESS) {
+        if (vkCreateImageView(app->device, &create_info, NULL, &app->swap_chain.image_views[i]) != VK_SUCCESS) {
             printf("\nFailed to create image views!");
             exit(-1);
         }
     }
 }
-static VkShaderModule create_shader_module(t_Application *app, const unsigned char* code, size_t file_size) {
+static VkShaderModule create_shader_module(const t_Application *app, const unsigned char* code, const size_t file_size) {
     const VkShaderModuleCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = file_size,
         .pCode = (const uint32_t*)(code)
     };
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(app->device, &create_info, nullptr, &shaderModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(app->device, &create_info, NULL, &shaderModule) != VK_SUCCESS) {
         printf("Failed to create a shader module! \n");
     }
     return shaderModule;
@@ -377,9 +371,9 @@ static void create_graphics_pipeline(t_Application *app) {
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .vertexBindingDescriptionCount = 0,
-        .pVertexBindingDescriptions = nullptr,
+        .pVertexBindingDescriptions = NULL,
         .vertexAttributeDescriptionCount = 0,
-        .pVertexAttributeDescriptions = nullptr
+        .pVertexAttributeDescriptions = NULL
     };
 
     VkPipelineInputAssemblyStateCreateInfo input_assembly = {
@@ -429,7 +423,7 @@ static void create_graphics_pipeline(t_Application *app) {
         .sampleShadingEnable = VK_FALSE,
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
         .minSampleShading = 1.0f,
-        .pSampleMask = nullptr,
+        .pSampleMask = NULL,
         .alphaToCoverageEnable = VK_FALSE,
         .alphaToOneEnable = VK_FALSE
     };
@@ -460,12 +454,12 @@ static void create_graphics_pipeline(t_Application *app) {
     VkPipelineLayoutCreateInfo pipeline_layout_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 0, // Optional
-        .pSetLayouts = nullptr, // Optional
+        .pSetLayouts = NULL, // Optional
         .pushConstantRangeCount = 0, // Optional
-        .pPushConstantRanges = nullptr, // Optional
+        .pPushConstantRanges = NULL, // Optional
     };
 
-    if (vkCreatePipelineLayout(app->device, &pipeline_layout_info, nullptr, &app->pipeline_layout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(app->device, &pipeline_layout_info, NULL, &app->pipeline_layout) != VK_SUCCESS) {
         printf("Failed to create pipeline layout! \n");
     }
 
@@ -478,7 +472,7 @@ static void create_graphics_pipeline(t_Application *app) {
         .pViewportState = &viewport_state,
         .pRasterizationState = &rasterizer,
         .pMultisampleState = &multi_sampling,
-        .pDepthStencilState = nullptr, // Optional
+        .pDepthStencilState = NULL, // Optional
         .pColorBlendState = &color_blending,
         .pDynamicState = &dynamic_state,
         .layout = app->pipeline_layout,
@@ -487,15 +481,15 @@ static void create_graphics_pipeline(t_Application *app) {
         .basePipelineHandle = VK_NULL_HANDLE,
         .basePipelineIndex = -1
     };
-    if (vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &app->graphics_pipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(app->device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &app->graphics_pipeline) != VK_SUCCESS) {
         printf("Failed To Create Graphics Pipeline! \n");
     }
-    vkDestroyShaderModule(app->device, vert_shader_module, nullptr);
-    vkDestroyShaderModule(app->device, frag_shader_module, nullptr);
+    vkDestroyShaderModule(app->device, vert_shader_module, NULL);
+    vkDestroyShaderModule(app->device, frag_shader_module, NULL);
 
 }
 static void app_create_swap_chain(t_Application *app) {
-    const QueueFamilyIndices indices = app_find_queue_families(&app->surface, &app->physical_device);
+    const t_QueueFamilyIndices indices = app_find_queue_families(&app->surface, &app->physical_device);
 
     app->swap_chain = swap_chain_create(&app->surface, &app->device, &app->physical_device, app->window, &indices);
 }
@@ -531,7 +525,7 @@ static void create_render_pass(t_Application *app) {
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
     };
 
-    VkRenderPassCreateInfo render_pass_info = {
+    const VkRenderPassCreateInfo render_pass_info = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .attachmentCount = 1,
         .pAttachments = &color_attachment,
@@ -542,7 +536,7 @@ static void create_render_pass(t_Application *app) {
     };
 
 
-    if (vkCreateRenderPass(app->device, &render_pass_info, nullptr, &app->render_pass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(app->device, &render_pass_info, NULL, &app->render_pass) != VK_SUCCESS) {
         printf("Failed to create render pass! \n");
     }
 }
@@ -553,7 +547,7 @@ static void create_frame_buffers(t_Application *app) {
             app->swap_chain.image_views[i]
         };
 
-        VkFramebufferCreateInfo framebufferInfo = {
+        VkFramebufferCreateInfo framebuffer_info = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             .renderPass = app->render_pass,
             .attachmentCount = 1,
@@ -563,26 +557,26 @@ static void create_frame_buffers(t_Application *app) {
             .layers = 1,
         };
 
-        if (vkCreateFramebuffer(app->device, &framebufferInfo, nullptr, &app->swap_chain.framebuffers[i]) != VK_SUCCESS) {
+        if (vkCreateFramebuffer(app->device, &framebuffer_info, NULL, &app->swap_chain.framebuffers[i]) != VK_SUCCESS) {
             printf("Failed to create a framebuffer! \n");
         }
     }
 }
 static void create_command_pool(t_Application *app) {
-    QueueFamilyIndices queueFamilyIndices = app_find_queue_families(&app->surface, &app->physical_device);
+    const t_QueueFamilyIndices queue_family_indices = app_find_queue_families(&app->surface, &app->physical_device);
 
-    VkCommandPoolCreateInfo pool_info = {
+    const VkCommandPoolCreateInfo pool_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = queueFamilyIndices.graphics_family.value
+        .queueFamilyIndex = queue_family_indices.graphics_family.value
     };
 
-    if (vkCreateCommandPool(app->device, &pool_info, nullptr, &app->command_pool) != VK_SUCCESS) {
+    if (vkCreateCommandPool(app->device, &pool_info, NULL, &app->command_pool) != VK_SUCCESS) {
         printf("Failed to create command pool! \n");
     }
 }
 static void create_command_buffer(t_Application *app) {
-    VkCommandBufferAllocateInfo alloc_info = {
+    const VkCommandBufferAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = app->command_pool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
@@ -594,42 +588,42 @@ static void create_command_buffer(t_Application *app) {
     }
 
 }
-static void record_command_buffer(t_Application *app, VkCommandBuffer *command_buffer, uint32_t image_index) {
-    VkCommandBufferBeginInfo beginInfo = {
+static void record_command_buffer(const t_Application *app, const VkCommandBuffer *command_buffer, const uint32_t image_index) {
+    const VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0, // Optional
-        .pInheritanceInfo = nullptr, // Optional
+        .pInheritanceInfo = NULL, // Optional
     };
-    if (vkBeginCommandBuffer(*command_buffer, &beginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(*command_buffer, &begin_info) != VK_SUCCESS) {
         printf("Failed to begin command buffer! \n");
     }
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
 
-    VkRenderPassBeginInfo renderPassInfo = {
+    const VkRenderPassBeginInfo render_pass_info = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
         .renderPass = app->render_pass,
         .framebuffer = app->swap_chain.framebuffers[image_index],
         .renderArea.offset = {0, 0},
         .renderArea.extent = app->swap_chain.extent,
         .clearValueCount = 1,
-        .pClearValues = &clearColor
+        .pClearValues = &clear_color
     };
 
-    vkCmdBeginRenderPass(*command_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(*command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(*command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, app->graphics_pipeline);
 
-    VkViewport viewport = {
-    .x = 0.0f,
-    .y = 0.0f,
-    .width = (float)(app->swap_chain.extent.width),
-    .height = (float)(app->swap_chain.extent.height),
-    .minDepth = 0.0f,
-    .maxDepth = 1.0f,
+    const VkViewport viewport = {
+        .x = 0.0f,
+        .y = 0.0f,
+        .width = (float)(app->swap_chain.extent.width),
+        .height = (float)(app->swap_chain.extent.height),
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
     };
     vkCmdSetViewport(*command_buffer, 0, 1, &viewport);
 
-    VkRect2D scissor = {
+    const VkRect2D scissor = {
     .offset = {0, 0},
     .extent = app->swap_chain.extent,
     };
@@ -645,16 +639,16 @@ static void record_command_buffer(t_Application *app, VkCommandBuffer *command_b
 
 }
 static void create_sync_objects(t_Application *app) {
-    VkSemaphoreCreateInfo semaphore_info = {
+    const VkSemaphoreCreateInfo semaphore_info = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
     };
-    VkFenceCreateInfo fence_info = {
+    const VkFenceCreateInfo fence_info = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
         .flags = VK_FENCE_CREATE_SIGNALED_BIT
     };
-    if (vkCreateSemaphore(app->device, &semaphore_info, nullptr, &app->image_available_semaphore) != VK_SUCCESS ||
-    vkCreateSemaphore(app->device, &semaphore_info, nullptr, &app->render_finished_semaphore) != VK_SUCCESS ||
-    vkCreateFence(app->device, &fence_info, nullptr, &app->in_flight_fence) != VK_SUCCESS) {
+    if (vkCreateSemaphore(app->device, &semaphore_info, NULL, &app->image_available_semaphore) != VK_SUCCESS ||
+    vkCreateSemaphore(app->device, &semaphore_info, NULL, &app->render_finished_semaphore) != VK_SUCCESS ||
+    vkCreateFence(app->device, &fence_info, NULL, &app->in_flight_fence) != VK_SUCCESS) {
         printf("Failed to create semaphores! \n");
     }
 
@@ -698,11 +692,13 @@ void app_init(t_Application *app) {
 
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    app->window = glfwCreateWindow(1280,720, "VulkanDemo", nullptr, nullptr);
+    app->window = glfwCreateWindow(1280,720, "VulkanDemo", NULL, NULL);
 
     //setup validation list
 
-    const char *default_device_extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    const char *default_device_extensions[] = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    };
     app->device_ext_size = 1;
     app->device_extensions = malloc(app->device_ext_size * sizeof(char *));
     for (size_t i = 0; i < app->device_ext_size; i++) {
@@ -723,51 +719,47 @@ void app_init(t_Application *app) {
     free(app->device_extensions);
     free(app->validation_layers);
 }
-static void draw_frame(t_Application *app) {
+static void draw_frame(const t_Application *app) {
     vkWaitForFences(app->device, 1, &app->in_flight_fence, VK_TRUE, UINT64_MAX);
     vkResetFences(app->device, 1, &app->in_flight_fence);
 
-    uint32_t imageIndex;
-    vkAcquireNextImageKHR(app->device, app->swap_chain.instance, UINT64_MAX, app->image_available_semaphore, VK_NULL_HANDLE, &imageIndex);
+    uint32_t image_index;
+    vkAcquireNextImageKHR(app->device, app->swap_chain.instance, UINT64_MAX, app->image_available_semaphore, VK_NULL_HANDLE, &image_index);
 
     vkResetCommandBuffer(app->command_buffer, 0);
 
-    record_command_buffer(app, &app->command_buffer, imageIndex);
+    record_command_buffer(app, &app->command_buffer, image_index);
+    const VkSemaphore wait_semaphores[] = {app->image_available_semaphore};
+    const VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    const VkSemaphore signal_semaphores[] = {app->render_finished_semaphore};
 
-    VkSubmitInfo submitInfo = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO
+    const VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = wait_semaphores,
+        .pWaitDstStageMask = wait_stages,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &app->command_buffer,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = signal_semaphores,
     };
 
-    VkSemaphore waitSemaphores[] = {app->image_available_semaphore};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &app->command_buffer;
-
-    VkSemaphore signalSemaphores[] = {app->render_finished_semaphore};
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
-    if (vkQueueSubmit(app->graphics_queue, 1, &submitInfo, app->in_flight_fence) != VK_SUCCESS) {
+    if (vkQueueSubmit(app->graphics_queue, 1, &submit_info, app->in_flight_fence) != VK_SUCCESS) {
         printf("Failed to submit draw buffer! \n");
     }
 
-    VkPresentInfoKHR presentInfo = {};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    const VkSwapchainKHR swap_chains[] = {app->swap_chain.instance};
 
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
+    const VkPresentInfoKHR present_info = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = signal_semaphores,
+        .swapchainCount = 1,
+        .pSwapchains = swap_chains,
+        .pImageIndices = &image_index,
+    };
 
-    VkSwapchainKHR swapChains[] = {app->swap_chain.instance};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-
-    presentInfo.pImageIndices = &imageIndex;
-
-    vkQueuePresentKHR(app->present_queue, &presentInfo);
+    vkQueuePresentKHR(app->present_queue, &present_info);
 
 
 }
@@ -778,31 +770,31 @@ void app_run(const t_Application *app) {
     }
 }
 void app_end(const t_Application *app) {
-    vkDestroySemaphore(app->device, app->image_available_semaphore, nullptr);
-    vkDestroySemaphore(app->device, app->render_finished_semaphore, nullptr);
-    vkDestroyFence(app->device, app->in_flight_fence, nullptr);
-    vkDestroyCommandPool(app->device, app->command_pool, nullptr);
+    vkDestroySemaphore(app->device, app->image_available_semaphore, NULL);
+    vkDestroySemaphore(app->device, app->render_finished_semaphore, NULL);
+    vkDestroyFence(app->device, app->in_flight_fence, NULL);
+    vkDestroyCommandPool(app->device, app->command_pool, NULL);
     for(size_t i = 0; i < app->swap_chain.image_count; i++) {
-        vkDestroyFramebuffer(app->device, app->swap_chain.framebuffers[i], nullptr);
+        vkDestroyFramebuffer(app->device, app->swap_chain.framebuffers[i], NULL);
     }
     free(app->swap_chain.framebuffers);
-    vkDestroyPipeline(app->device, app->graphics_pipeline, nullptr);
-    vkDestroyPipelineLayout(app->device, app->pipeline_layout, nullptr);
-    vkDestroyRenderPass(app->device, app->render_pass, nullptr);
+    vkDestroyPipeline(app->device, app->graphics_pipeline, NULL);
+    vkDestroyPipelineLayout(app->device, app->pipeline_layout, NULL);
+    vkDestroyRenderPass(app->device, app->render_pass, NULL);
 
     for(size_t i = 0; i < app->swap_chain.image_count; i++) {
-        vkDestroyImageView(app->device, app->swap_chain.image_views[i], nullptr);
+        vkDestroyImageView(app->device, app->swap_chain.image_views[i], NULL);
     }
     free(app->swap_chain.image_views);
 
     if (app->enable_validation_layers) {
-        destroy_debug_utils_messenger_ext(app->vk_instance, app->debug_messenger, nullptr);
+        destroy_debug_utils_messenger_ext(app->vk_instance, app->debug_messenger, NULL);
     }
-    vkDestroySwapchainKHR(app->device, app->swap_chain.instance, nullptr);
+    vkDestroySwapchainKHR(app->device, app->swap_chain.instance, NULL);
     free(app->swap_chain.images);
-    vkDestroyDevice(app->device, nullptr);
-    vkDestroySurfaceKHR(app->vk_instance, app->surface, nullptr);
-    vkDestroyInstance(app->vk_instance, nullptr);
+    vkDestroyDevice(app->device, NULL);
+    vkDestroySurfaceKHR(app->vk_instance, app->surface, NULL);
+    vkDestroyInstance(app->vk_instance, NULL);
     glfwDestroyWindow(app->window);
     glfwTerminate();
 }

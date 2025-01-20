@@ -13,7 +13,7 @@ typedef struct SwapChain {
     VkFramebuffer* framebuffers;
 }SwapChain;
 
-void swap_chain_query_support_details(SwapChainSupportDetails *details, VkSurfaceKHR *surface, const VkPhysicalDevice *device);
-void swap_chain_free_support(SwapChainSupportDetails *details);
+void swap_chain_query_support_details(t_SwapChainSupportDetails *details, const VkSurfaceKHR *surface, const VkPhysicalDevice *device);
+void swap_chain_free_support(t_SwapChainSupportDetails *details);
 SwapChain swap_chain_create(VkSurfaceKHR *surface, const VkDevice *device, const VkPhysicalDevice *physical_device,
-    GLFWwindow *window, const QueueFamilyIndices *indices);
+    GLFWwindow *window, const t_QueueFamilyIndices *indices);

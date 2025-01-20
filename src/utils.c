@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-uint8_t is_complete(const QueueFamilyIndices* indices) {
+uint8_t is_complete(const t_QueueFamilyIndices* indices) {
     return indices->graphics_family.has_value && indices->present_family.has_value;
 }
 unsigned char* read_file(const char* filename, size_t* file_size) {

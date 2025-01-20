@@ -35,7 +35,7 @@ typedef struct Application {
 
 }t_Application;
 
-QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device);
+t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device);
 
 void app_init(t_Application *app);
 

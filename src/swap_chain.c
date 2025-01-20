@@ -53,12 +53,12 @@ static VkSurfaceFormatKHR choose_swap_surface_format(const VkSurfaceFormatKHR* a
     }
     return available_formats[0];
 }
-void swap_chain_query_support_details(SwapChainSupportDetails *details, VkSurfaceKHR *surface, const VkPhysicalDevice *device) {
+void swap_chain_query_support_details(t_SwapChainSupportDetails *details, const VkSurfaceKHR *surface, const VkPhysicalDevice *device) {
 
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(*device, *surface, &details->capabilities);
 
     uint32_t format_count = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(*device, *surface, &format_count, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(*device, *surface, &format_count, NULL);
 
     if (format_count != 0) {
         details->formats = (VkSurfaceFormatKHR *)malloc(format_count * sizeof(VkSurfaceFormatKHR));
@@ -71,7 +71,7 @@ void swap_chain_query_support_details(SwapChainSupportDetails *details, VkSurfac
 
 
     uint32_t present_mode_count = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(*device, *surface, &present_mode_count, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(*device, *surface, &present_mode_count, NULL);
 
     if (present_mode_count != 0) {
         details->present_modes = (VkPresentModeKHR *)malloc(present_mode_count * sizeof(VkPresentModeKHR));
@@ -84,7 +84,7 @@ void swap_chain_query_support_details(SwapChainSupportDetails *details, VkSurfac
 
 
 }
-void swap_chain_free_support(SwapChainSupportDetails *details) {
+void swap_chain_free_support(t_SwapChainSupportDetails *details) {
     if(details->formats) {
         free(details->formats);
         details->formats = NULL;
@@ -95,16 +95,16 @@ void swap_chain_free_support(SwapChainSupportDetails *details) {
     }
 }
 SwapChain swap_chain_create(VkSurfaceKHR *surface, const VkDevice *device, const VkPhysicalDevice *physical_device,
-    GLFWwindow *window, const QueueFamilyIndices *indices) {
+    GLFWwindow *window, const t_QueueFamilyIndices *indices) {
 
     SwapChain swap_chain = {};
 
-    SwapChainSupportDetails swap_details = {};
+    t_SwapChainSupportDetails swap_details = {};
 
     swap_chain_query_support_details(&swap_details, surface, physical_device);
 
-    const VkSurfaceFormatKHR surfaceFormat = choose_swap_surface_format(swap_details.formats, swap_details.format_size);
-    const VkPresentModeKHR presentMode = choose_swap_present_mode(swap_details.present_modes, swap_details.present_size);
+    const VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swap_details.formats, swap_details.format_size);
+    const VkPresentModeKHR present_mode = choose_swap_present_mode(swap_details.present_modes, swap_details.present_size);
     const VkExtent2D extent = choose_swap_extent(&swap_details.capabilities, window);
 
     swap_chain.image_count = swap_details.capabilities.minImageCount + 1;
@@ -117,41 +117,41 @@ SwapChain swap_chain_create(VkSurfaceKHR *surface, const VkDevice *device, const
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = *surface,
         .minImageCount = swap_chain.image_count,
-        .imageFormat = surfaceFormat.format,
-        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageFormat = surface_format.format,
+        .imageColorSpace = surface_format.colorSpace,
         .imageExtent = extent,
         .imageArrayLayers = 1,
         .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
         };
-    const uint32_t queueFamilyIndices[] = {indices->graphics_family.value, indices->present_family.value};
+    const uint32_t queue_family_indices[] = {indices->graphics_family.value, indices->present_family.value};
 
     if (indices->graphics_family.value != indices->present_family.value) {
         create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         create_info.queueFamilyIndexCount = 2;
-        create_info.pQueueFamilyIndices = queueFamilyIndices;
+        create_info.pQueueFamilyIndices = queue_family_indices;
     } else {
         create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         create_info.queueFamilyIndexCount = 0;
-        create_info.pQueueFamilyIndices = nullptr;
+        create_info.pQueueFamilyIndices = NULL;
     }
 
     create_info.preTransform = swap_details.capabilities.currentTransform;
     create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    create_info.presentMode = presentMode;
+    create_info.presentMode = present_mode;
     create_info.clipped = VK_TRUE;
 
     create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(*device, &create_info, nullptr, &swap_chain.instance) != VK_SUCCESS) {
+    if (vkCreateSwapchainKHR(*device, &create_info, NULL, &swap_chain.instance) != VK_SUCCESS) {
         printf("\nfailed to create swap chain!");
         exit(-1);
     }
 
-    vkGetSwapchainImagesKHR(*device, swap_chain.instance, &swap_chain.image_count, nullptr);
+    vkGetSwapchainImagesKHR(*device, swap_chain.instance, &swap_chain.image_count, NULL);
     swap_chain.images = (VkImage*)malloc(swap_chain.image_count * sizeof(VkImage));
     vkGetSwapchainImagesKHR(*device, swap_chain.instance, &swap_chain.image_count, swap_chain.images);
 
-    swap_chain.image_format = surfaceFormat.format;
+    swap_chain.image_format = surface_format.format;
     swap_chain.extent = extent;
 
     swap_chain_free_support(&swap_details);
