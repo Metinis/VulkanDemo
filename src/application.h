@@ -7,6 +7,8 @@
 #include "swap_chain.h"
 #include "utils.h"
 
+#define MAX_FRAMES_IN_FLIGHT 2
+
 typedef struct GLFWwindow GLFWwindow;
 
 typedef struct Application {
@@ -28,10 +30,12 @@ typedef struct Application {
     VkPipelineLayout pipeline_layout;
     VkPipeline graphics_pipeline;
     VkCommandPool command_pool;
-    VkCommandBuffer command_buffer;
-    VkSemaphore image_available_semaphore;
-    VkSemaphore render_finished_semaphore;
-    VkFence in_flight_fence;
+    VkCommandBuffer* command_buffers;
+    VkSemaphore* image_available_semaphores;
+    VkSemaphore* render_finished_semaphores;
+    VkFence* in_flight_fences;
+    uint32_t current_frame;
+    uint8_t framebuffer_resized;
 
 }t_Application;
 
@@ -39,6 +43,6 @@ t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const 
 
 void app_init(t_Application *app);
 
-void app_run(const t_Application *app);
+void app_run(t_Application *app);
 
 void app_end(const t_Application *app);

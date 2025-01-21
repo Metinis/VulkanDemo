@@ -6,7 +6,7 @@
 #include <string.h>
 #include "vulkan_debug.h"
 
-static uint8_t check_validation_layer_support(const char** validation_layers, const size_t validation_size) {
+static uint8_t app_check_validation_layer_support(const char** validation_layers, const size_t validation_size) {
     uint32_t layer_count;
     vkEnumerateInstanceLayerProperties(&layer_count, NULL);
 
@@ -28,7 +28,7 @@ static uint8_t check_validation_layer_support(const char** validation_layers, co
     }
     return 1;
 }
-static uint8_t check_device_extension_support(const t_Application *app, const VkPhysicalDevice device) {
+static uint8_t app_check_device_extension_support(const t_Application *app, const VkPhysicalDevice device) {
     //enumerate and find if they exist
     uint32_t extension_count;
     vkEnumerateDeviceExtensionProperties(device, NULL, &extension_count, NULL);
@@ -89,7 +89,7 @@ static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*
 }
 static void app_enable_validation(const t_Application *app, VkInstanceCreateInfo* create_info) {
 
-    if (check_validation_layer_support(app->validation_layers, app->validation_size)) {
+    if (app_check_validation_layer_support(app->validation_layers, app->validation_size)) {
         create_info->enabledLayerCount = (uint32_t)(app->validation_size);
         create_info->ppEnabledLayerNames = app->validation_layers;
     } else {
@@ -123,7 +123,7 @@ static void app_create_vulkan_inst(t_Application *app) {
     if(app->enable_validation_layers) {
         app_enable_validation(app, &create_info);
 
-        populate_debug_messenger_create_info(&debug_create_info);
+        debug_populate_messenger_create_info(&debug_create_info);
         create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debug_create_info;
 
         debug_print_available_validation_layers();
@@ -179,7 +179,7 @@ t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const 
     return indices;
 }
 
-static uint8_t is_device_suitable(t_Application *app, const VkPhysicalDevice *device) {
+static uint8_t app_is_device_suitable(t_Application *app, const VkPhysicalDevice *device) {
     const t_QueueFamilyIndices indices = app_find_queue_families(&app->surface, device);
 
     //check swap chain support
@@ -192,10 +192,10 @@ static uint8_t is_device_suitable(t_Application *app, const VkPhysicalDevice *de
 
     swap_chain_free_support(&swap_details);
 
-    return is_complete(&indices) && check_device_extension_support(app, *device) && swap_chain_adequate;
+    return is_complete(&indices) && app_check_device_extension_support(app, *device) && swap_chain_adequate;
 }
 
-static void pick_physical_device(t_Application *app) {
+static void app_pick_physical_device(t_Application *app) {
     app->physical_device = VK_NULL_HANDLE;
 
     uint32_t device_count = 0;
@@ -210,7 +210,7 @@ static void pick_physical_device(t_Application *app) {
     vkEnumeratePhysicalDevices(app->vk_instance, &device_count, devices);
 
     for(size_t i = 0; i < device_count; i++) {
-        if(is_device_suitable(app, &devices[i])) {
+        if(app_is_device_suitable(app, &devices[i])) {
             app->physical_device = devices[i];
             break;
         }
@@ -222,7 +222,7 @@ static void pick_physical_device(t_Application *app) {
 }
 static void app_enable_validation_device(const t_Application *app, VkDeviceCreateInfo* create_info) {
 
-    if (check_validation_layer_support(app->validation_layers, app->validation_size)) {
+    if (app_check_validation_layer_support(app->validation_layers, app->validation_size)) {
         create_info->enabledLayerCount = (uint32_t)(app->validation_size);
         create_info->ppEnabledLayerNames = app->validation_layers;
     } else {
@@ -231,7 +231,7 @@ static void app_enable_validation_device(const t_Application *app, VkDeviceCreat
     }
 
 }
-static void create_logical_device(t_Application *app) {
+static void app_create_logical_device(t_Application *app) {
     const t_QueueFamilyIndices indices = app_find_queue_families(&app->surface, &app->physical_device);
 
     if (!indices.graphics_family.has_value || !indices.present_family.has_value) {
@@ -284,12 +284,12 @@ static void create_logical_device(t_Application *app) {
     printf("\nLogical device created successfully.");
 }
 
-static void create_surface(t_Application *app) {
+static void app_create_surface(t_Application *app) {
     if (glfwCreateWindowSurface(app->vk_instance, app->window, NULL, &app->surface) != VK_SUCCESS) {
         printf("\nFailed to create window surface! \n");
     }
 }
-static void create_image_views(t_Application *app) {
+static void app_create_image_views(t_Application *app) {
     app->swap_chain.image_views = (VkImageView*)malloc(app->swap_chain.image_count * sizeof(VkImageView));
     for(size_t i = 0; i < app->swap_chain.image_count; i++) {
         VkImageViewCreateInfo create_info = {
@@ -314,7 +314,7 @@ static void create_image_views(t_Application *app) {
         }
     }
 }
-static VkShaderModule create_shader_module(const t_Application *app, const unsigned char* code, const size_t file_size) {
+static VkShaderModule app_create_shader_module(const t_Application *app, const unsigned char* code, const size_t file_size) {
     const VkShaderModuleCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .codeSize = file_size,
@@ -327,16 +327,16 @@ static VkShaderModule create_shader_module(const t_Application *app, const unsig
     return shaderModule;
 }
 
-static void create_graphics_pipeline(t_Application *app) {
+static void app_create_graphics_pipeline(t_Application *app) {
     size_t vert_file_size;
     unsigned char* vert_shader_code = read_file("../resources/shader/shader.vert.spv", &vert_file_size);
     size_t frag_file_size;
     unsigned char* frag_shader_code = read_file("../resources/shader/shader.frag.spv", &frag_file_size);
 
-    const VkShaderModule vert_shader_module = create_shader_module(app, vert_shader_code, vert_file_size);
+    const VkShaderModule vert_shader_module = app_create_shader_module(app, vert_shader_code, vert_file_size);
     free(vert_shader_code);
 
-    const VkShaderModule frag_shader_module = create_shader_module(app, frag_shader_code, frag_file_size);
+    const VkShaderModule frag_shader_module = app_create_shader_module(app, frag_shader_code, frag_file_size);
     free(frag_shader_code);
 
     const VkPipelineShaderStageCreateInfo vert_shader_stage_info = {
@@ -493,7 +493,7 @@ static void app_create_swap_chain(t_Application *app) {
 
     app->swap_chain = swap_chain_create(&app->surface, &app->device, &app->physical_device, app->window, &indices);
 }
-static void create_render_pass(t_Application *app) {
+static void app_create_render_pass(t_Application *app) {
     VkAttachmentDescription color_attachment = {
         .format = app->swap_chain.image_format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -540,7 +540,7 @@ static void create_render_pass(t_Application *app) {
         printf("Failed to create render pass! \n");
     }
 }
-static void create_frame_buffers(t_Application *app) {
+static void app_create_frame_buffers(t_Application *app) {
     app->swap_chain.framebuffers = (VkFramebuffer*)malloc(app->swap_chain.image_count * sizeof(VkFramebuffer));
     for (size_t i = 0; i < app->swap_chain.image_count; i++) {
         VkImageView attachments[] = {
@@ -562,7 +562,7 @@ static void create_frame_buffers(t_Application *app) {
         }
     }
 }
-static void create_command_pool(t_Application *app) {
+static void app_create_command_pool(t_Application *app) {
     const t_QueueFamilyIndices queue_family_indices = app_find_queue_families(&app->surface, &app->physical_device);
 
     const VkCommandPoolCreateInfo pool_info = {
@@ -575,20 +575,21 @@ static void create_command_pool(t_Application *app) {
         printf("Failed to create command pool! \n");
     }
 }
-static void create_command_buffer(t_Application *app) {
+static void app_create_command_buffers(t_Application *app) {
+    app->command_buffers = (VkCommandBuffer*)malloc(sizeof(VkCommandBuffer) * MAX_FRAMES_IN_FLIGHT);
     const VkCommandBufferAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = app->command_pool,
         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1,
+        .commandBufferCount = MAX_FRAMES_IN_FLIGHT,
     };
 
-    if (vkAllocateCommandBuffers(app->device, &alloc_info, &app->command_buffer) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(app->device, &alloc_info, app->command_buffers) != VK_SUCCESS) {
         printf("Failed to create command buffer! \n");
     }
 
 }
-static void record_command_buffer(const t_Application *app, const VkCommandBuffer *command_buffer, const uint32_t image_index) {
+static void app_record_command_buffer(const t_Application *app, const VkCommandBuffer *command_buffer, const uint32_t image_index) {
     const VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0, // Optional
@@ -638,7 +639,11 @@ static void record_command_buffer(const t_Application *app, const VkCommandBuffe
     }
 
 }
-static void create_sync_objects(t_Application *app) {
+static void app_create_sync_objects(t_Application *app) {
+    app->image_available_semaphores = (VkSemaphore*)malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
+    app->render_finished_semaphores = (VkSemaphore*)malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
+    app->in_flight_fences = (VkFence*)malloc(sizeof(VkFence) * MAX_FRAMES_IN_FLIGHT);
+
     const VkSemaphoreCreateInfo semaphore_info = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
     };
@@ -646,10 +651,12 @@ static void create_sync_objects(t_Application *app) {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
         .flags = VK_FENCE_CREATE_SIGNALED_BIT
     };
-    if (vkCreateSemaphore(app->device, &semaphore_info, NULL, &app->image_available_semaphore) != VK_SUCCESS ||
-    vkCreateSemaphore(app->device, &semaphore_info, NULL, &app->render_finished_semaphore) != VK_SUCCESS ||
-    vkCreateFence(app->device, &fence_info, NULL, &app->in_flight_fence) != VK_SUCCESS) {
-        printf("Failed to create semaphores! \n");
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        if (vkCreateSemaphore(app->device, &semaphore_info, NULL, &app->image_available_semaphores[i]) != VK_SUCCESS ||
+        vkCreateSemaphore(app->device, &semaphore_info, NULL, &app->render_finished_semaphores[i]) != VK_SUCCESS ||
+        vkCreateFence(app->device, &fence_info, NULL, &app->in_flight_fences[i]) != VK_SUCCESS) {
+            printf("Failed to create semaphores! \n");
+        }
     }
 
 
@@ -659,32 +666,37 @@ static void app_vulkan_init(t_Application *app) {
 
     app_create_vulkan_inst(app);
 
-    setup_debug_messenger(app);
+    debug_setup_messenger(app);
 
-    create_surface(app);
+    app_create_surface(app);
 
-    pick_physical_device(app);
+    app_pick_physical_device(app);
 
-    create_logical_device(app);
+    app_create_logical_device(app);
 
     app_create_swap_chain(app);
 
-    create_image_views(app);
+    app_create_image_views(app);
 
-    create_render_pass(app);
+    app_create_render_pass(app);
 
-    create_graphics_pipeline(app);
+    app_create_graphics_pipeline(app);
 
-    create_frame_buffers(app);
+    app_create_frame_buffers(app);
 
-    create_command_pool(app);
+    app_create_command_pool(app);
 
-    create_command_buffer(app);
+    app_create_command_buffers(app);
 
-    create_sync_objects(app);
+    app_create_sync_objects(app);
 }
 
+static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {
+    t_Application *app = (t_Application *)glfwGetWindowUserPointer(window);
 
+    app->framebuffer_resized = 1;
+
+}
 void app_init(t_Application *app) {
     glfwInit();
 
@@ -693,6 +705,11 @@ void app_init(t_Application *app) {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     app->window = glfwCreateWindow(1280,720, "VulkanDemo", NULL, NULL);
+    glfwSetWindowUserPointer(app->window, app);
+    glfwSetFramebufferSizeCallback(app->window, framebuffer_resize_callback);
+
+    app->current_frame = 0;
+    app->framebuffer_resized = 0;
 
     //setup validation list
 
@@ -719,19 +736,58 @@ void app_init(t_Application *app) {
     free(app->device_extensions);
     free(app->validation_layers);
 }
-static void draw_frame(const t_Application *app) {
-    vkWaitForFences(app->device, 1, &app->in_flight_fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(app->device, 1, &app->in_flight_fence);
+static void app_cleanup_swap_chain(const t_Application *app) {
+    for (size_t i = 0; i < app->swap_chain.image_count; i++) {
+        vkDestroyFramebuffer(app->device, app->swap_chain.framebuffers[i], NULL);
+    }
+
+    for (size_t i = 0; i < app->swap_chain.image_count; i++) {
+        vkDestroyImageView(app->device, app->swap_chain.image_views[i], NULL);
+    }
+
+    vkDestroySwapchainKHR(app->device, app->swap_chain.instance, NULL);
+}
+static void app_recreate_swap_chain(t_Application *app) {
+    //pause until window is not minimised
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(app->window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(app->window, &width, &height);
+        glfwWaitEvents();
+    }
+    vkDeviceWaitIdle(app->device);
+
+    app_cleanup_swap_chain(app);
+
+    const t_QueueFamilyIndices indices = app_find_queue_families(&app->surface, &app->physical_device);
+
+    swap_chain_create(&app->surface, &app->device, &app->physical_device, app->window, &indices);
+    app_create_image_views(app);
+    app_create_frame_buffers(app);
+
+}
+
+static void app_draw_frame(t_Application *app) {
+    vkWaitForFences(app->device, 1, &app->in_flight_fences[app->current_frame], VK_TRUE, UINT64_MAX);
 
     uint32_t image_index;
-    vkAcquireNextImageKHR(app->device, app->swap_chain.instance, UINT64_MAX, app->image_available_semaphore, VK_NULL_HANDLE, &image_index);
+    VkResult result = vkAcquireNextImageKHR(app->device, app->swap_chain.instance, UINT64_MAX, app->image_available_semaphores[app->current_frame], VK_NULL_HANDLE, &image_index);
 
-    vkResetCommandBuffer(app->command_buffer, 0);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || app->framebuffer_resized) {
+        app->framebuffer_resized = 0;
+        app_recreate_swap_chain(app);
+        return;
+    } else if (result != VK_SUCCESS) {
+        printf("Failed to acquire swap chain! \n");
+    }
+    vkResetFences(app->device, 1, &app->in_flight_fences[app->current_frame]);
 
-    record_command_buffer(app, &app->command_buffer, image_index);
-    const VkSemaphore wait_semaphores[] = {app->image_available_semaphore};
+    vkResetCommandBuffer(app->command_buffers[app->current_frame], 0);
+
+    app_record_command_buffer(app, &app->command_buffers[app->current_frame], image_index);
+    const VkSemaphore wait_semaphores[] = {app->image_available_semaphores[app->current_frame]};
     const VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    const VkSemaphore signal_semaphores[] = {app->render_finished_semaphore};
+    const VkSemaphore signal_semaphores[] = {app->render_finished_semaphores[app->current_frame]};
 
     const VkSubmitInfo submit_info = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -739,12 +795,12 @@ static void draw_frame(const t_Application *app) {
         .pWaitSemaphores = wait_semaphores,
         .pWaitDstStageMask = wait_stages,
         .commandBufferCount = 1,
-        .pCommandBuffers = &app->command_buffer,
+        .pCommandBuffers = &app->command_buffers[app->current_frame],
         .signalSemaphoreCount = 1,
         .pSignalSemaphores = signal_semaphores,
     };
 
-    if (vkQueueSubmit(app->graphics_queue, 1, &submit_info, app->in_flight_fence) != VK_SUCCESS) {
+    if (vkQueueSubmit(app->graphics_queue, 1, &submit_info, app->in_flight_fences[app->current_frame]) != VK_SUCCESS) {
         printf("Failed to submit draw buffer! \n");
     }
 
@@ -759,38 +815,50 @@ static void draw_frame(const t_Application *app) {
         .pImageIndices = &image_index,
     };
 
-    vkQueuePresentKHR(app->present_queue, &present_info);
+    result = vkQueuePresentKHR(app->present_queue, &present_info);
 
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        app_recreate_swap_chain(app);
+    } else if (result != VK_SUCCESS) {
+        printf("Failed to present swap chain image!\n");
+    }
+
+
+
+    app->current_frame = (app->current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
 }
-void app_run(const t_Application *app) {
+void app_run(t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
-        draw_frame(app);
+        app_draw_frame(app);
     }
+    vkDeviceWaitIdle(app->device);
 }
 void app_end(const t_Application *app) {
-    vkDestroySemaphore(app->device, app->image_available_semaphore, NULL);
-    vkDestroySemaphore(app->device, app->render_finished_semaphore, NULL);
-    vkDestroyFence(app->device, app->in_flight_fence, NULL);
+    app_cleanup_swap_chain(app);
+    free(app->swap_chain.image_views);
+    free(app->swap_chain.framebuffers);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroySemaphore(app->device, app->render_finished_semaphores[i], NULL);
+        vkDestroySemaphore(app->device, app->image_available_semaphores[i], NULL);
+        vkDestroyFence(app->device, app->in_flight_fences[i], NULL);
+    }
+    free(app->command_buffers);
+    free(app->image_available_semaphores);
+    free(app->render_finished_semaphores);
+    free(app->in_flight_fences);
     vkDestroyCommandPool(app->device, app->command_pool, NULL);
     for(size_t i = 0; i < app->swap_chain.image_count; i++) {
         vkDestroyFramebuffer(app->device, app->swap_chain.framebuffers[i], NULL);
     }
-    free(app->swap_chain.framebuffers);
     vkDestroyPipeline(app->device, app->graphics_pipeline, NULL);
     vkDestroyPipelineLayout(app->device, app->pipeline_layout, NULL);
     vkDestroyRenderPass(app->device, app->render_pass, NULL);
 
-    for(size_t i = 0; i < app->swap_chain.image_count; i++) {
-        vkDestroyImageView(app->device, app->swap_chain.image_views[i], NULL);
-    }
-    free(app->swap_chain.image_views);
-
     if (app->enable_validation_layers) {
-        destroy_debug_utils_messenger_ext(app->vk_instance, app->debug_messenger, NULL);
+        debug_destroy_utils_messenger_ext(app->vk_instance, app->debug_messenger, NULL);
     }
-    vkDestroySwapchainKHR(app->device, app->swap_chain.instance, NULL);
     free(app->swap_chain.images);
     vkDestroyDevice(app->device, NULL);
     vkDestroySurfaceKHR(app->vk_instance, app->surface, NULL);
