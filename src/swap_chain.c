@@ -94,10 +94,10 @@ void swap_chain_free_support(t_SwapChainSupportDetails *details) {
         details->present_modes = NULL;
     }
 }
-SwapChain swap_chain_create(VkSurfaceKHR *surface, const VkDevice *device, const VkPhysicalDevice *physical_device,
+t_SwapChain swap_chain_create(const VkSurfaceKHR *surface, const VkDevice *device, const VkPhysicalDevice *physical_device,
     GLFWwindow *window, const t_QueueFamilyIndices *indices) {
 
-    SwapChain swap_chain = {};
+    t_SwapChain swap_chain = {};
 
     t_SwapChainSupportDetails swap_details = {};
 
@@ -158,4 +158,84 @@ SwapChain swap_chain_create(VkSurfaceKHR *surface, const VkDevice *device, const
 
     return swap_chain;
 
+}
+void swap_chain_cleanup(const t_SwapChain *swap_chain, const VkDevice *device) {
+    for (size_t i = 0; i < swap_chain->image_count; i++) {
+        vkDestroyFramebuffer(*device, swap_chain->framebuffers[i], NULL);
+    }
+
+    for (size_t i = 0; i < swap_chain->image_count; i++) {
+        vkDestroyImageView(*device, swap_chain->image_views[i], NULL);
+    }
+
+    vkDestroySwapchainKHR(*device, swap_chain->instance, NULL);
+    free(swap_chain->image_views);
+    free(swap_chain->framebuffers);
+    free(swap_chain->images);
+}
+void swap_chain_create_image_views(t_SwapChain *swap_chain, const VkDevice *device) {
+    swap_chain->image_views = (VkImageView*)malloc(swap_chain->image_count * sizeof(VkImageView));
+    for(size_t i = 0; i < swap_chain->image_count; i++) {
+        VkImageViewCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = swap_chain->images[i],
+        .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        .format = swap_chain->image_format,
+        .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .subresourceRange.baseMipLevel = 0,
+        .subresourceRange.levelCount = 1,
+        .subresourceRange.baseArrayLayer = 0,
+        .subresourceRange.layerCount = 1
+            };
+
+        if (vkCreateImageView(*device, &create_info, NULL, &swap_chain->image_views[i]) != VK_SUCCESS) {
+            printf("\nFailed to create image views!");
+            exit(-1);
+        }
+    }
+}
+
+void swap_chain_create_frame_buffers(t_SwapChain *swap_chain, const VkDevice *device, const VkRenderPass *render_pass) {
+    swap_chain->framebuffers = (VkFramebuffer*)malloc(swap_chain->image_count * sizeof(VkFramebuffer));
+    for (size_t i = 0; i < swap_chain->image_count; i++) {
+        VkImageView attachments[] = {
+            swap_chain->image_views[i]
+        };
+
+        VkFramebufferCreateInfo framebuffer_info = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = *render_pass,
+            .attachmentCount = 1,
+            .pAttachments = attachments,
+            .width = swap_chain->extent.width,
+            .height = swap_chain->extent.height,
+            .layers = 1,
+        };
+
+        if (vkCreateFramebuffer(*device, &framebuffer_info, NULL, &swap_chain->framebuffers[i]) != VK_SUCCESS) {
+            printf("Failed to create a framebuffer! \n");
+        }
+    }
+}
+void swap_chain_recreate(const t_SwapChain *swap_chain, const VkSurfaceKHR *surface, const VkDevice *device, const VkPhysicalDevice *physical_device,
+    GLFWwindow *window, const t_QueueFamilyIndices *indices) {
+    //pause until window is not minimised
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+    vkDeviceWaitIdle(*device);
+
+    swap_chain_cleanup(swap_chain, device);
+
+    swap_chain_create(surface, device, physical_device, window, indices);
+    //todo check this
+    //app_create_image_views(app);
+    //app_create_frame_buffers(app);
 }
