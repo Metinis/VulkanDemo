@@ -17,16 +17,22 @@ find_package(Vulkan REQUIRED)
 # Add VulkanDemo executable
 add_executable(VulkanDemo src/main.c
         src/application.c
-        src/vulkan_debug.c
-        src/vulkan_debug.h
+        src/vk_debug.c
+        src/vk_debug.h
         src/utils.c
         src/utils.h
-        src/swap_chain.c
-        src/swap_chain.h
-        src/vulkan_pipeline.c
-        src/vulkan_pipeline.h
-        src/vulkan_device.c
-        src/vulkan_device.h)
+        src/vk_swap_chain.c
+        src/vk_swap_chain.h
+        src/vk_pipeline.c
+        src/vk_pipeline.h
+        src/vk_device.c
+        src/vk_device.h
+        src/vk_validation.c
+        src/vk_validation.h
+        src/vk_vertex_buffers.c
+        src/vk_vertex_buffers.h
+        src/vk_renderer.c
+        src/vk_renderer.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)

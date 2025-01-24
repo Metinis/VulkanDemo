@@ -2,7 +2,7 @@
 #include "utils.h"
 #include "GLFW/glfw3.h"
 
-typedef struct Application t_Application;
+//typedef struct Application t_Application;
 typedef struct SwapChain {
     VkSwapchainKHR instance;
     VkImage* images;

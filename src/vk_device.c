@@ -1,10 +1,10 @@
-#include "vulkan_device.h"
+#include "vk_device.h"
 
 #include <stdio.h>
 #include <string.h>
 
 #include "application.h"
-#include "swap_chain.h"
+#include "vk_swap_chain.h"
 #include "GLFW/glfw3.h"
 static uint8_t device_check_extension_support(const t_Device *device, const VkPhysicalDevice *physical_device) {
     //enumerate and find if they exist

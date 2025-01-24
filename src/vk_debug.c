@@ -1,4 +1,4 @@
-#include "vulkan_debug.h"
+#include "vk_debug.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,13 +77,13 @@ static VkResult create_debug_utils_messenger_ext(const VkInstance instance, cons
     }
 }
 
-void debug_setup_messenger(t_Application *app) {
-    if (!app->enable_validation_layers) return;
+void debug_setup_messenger(const uint8_t enable_validation_layers, const VkInstance *instance, VkDebugUtilsMessengerEXT *debug_messenger) {
+    if (!enable_validation_layers) return;
 
     VkDebugUtilsMessengerCreateInfoEXT create_info;
     debug_populate_messenger_create_info(&create_info);
 
-    if (create_debug_utils_messenger_ext(app->vk_instance, &create_info, nullptr, &app->debug_messenger) != VK_SUCCESS) {
+    if (create_debug_utils_messenger_ext(*instance, &create_info, nullptr, debug_messenger) != VK_SUCCESS) {
         printf("failed to setup debug messenger!\n");
     }
 }

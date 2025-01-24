@@ -4,33 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "vulkan_debug.h"
+#include "vk_debug.h"
 
-static uint8_t app_check_validation_layer_support(const char** validation_layers, const size_t validation_size) {
-    uint32_t layer_count;
-    vkEnumerateInstanceLayerProperties(&layer_count, NULL);
-
-    VkLayerProperties available_layers[layer_count];
-    vkEnumerateInstanceLayerProperties(&layer_count, available_layers);
-
-    for(size_t i = 0; i < validation_size; i++) {
-        uint8_t layer_found = 0;
-
-        for(size_t j = 0; j < layer_count; j++) {
-            if (strcmp(validation_layers[i], available_layers[j].layerName) == 0) {
-                layer_found = 1;
-                break;
-            }
-        }
-        if(!layer_found) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*** extensions_ptr,
-    const uint8_t enable_validation_layers) {
+static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*** extensions_ptr) {
 
     uint32_t glfw_extensionCount = 0;
     const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extensionCount);
@@ -43,7 +19,7 @@ static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*
     //****FOR MAC VK_INCOMPATIBLE DRIVER ****
 
     uint32_t extension_count = glfw_extensionCount + 1;
-    if(enable_validation_layers) {
+    if(ENABLE_VALIDATION_LAYERS) {
         extension_count++;
     }
 
@@ -55,7 +31,7 @@ static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*
 
     required_extensions[glfw_extensionCount] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
 
-    if (enable_validation_layers) {
+    if (ENABLE_VALIDATION_LAYERS) {
         required_extensions[glfw_extensionCount + 1] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
     }
 
@@ -68,17 +44,7 @@ static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*
 
     *extensions_ptr = required_extensions;
 }
-static void app_enable_validation(const t_Application *app, VkInstanceCreateInfo* create_info) {
 
-    if (app_check_validation_layer_support(app->validation_layers, app->validation_size)) {
-        create_info->enabledLayerCount = (uint32_t)(app->validation_size);
-        create_info->ppEnabledLayerNames = app->validation_layers;
-    } else {
-        create_info->enabledLayerCount = 0;
-        create_info->ppEnabledLayerNames = NULL;
-    }
-
-}
 
 static void app_create_vulkan_inst(t_Application *app) {
     VkApplicationInfo app_info = {};
@@ -93,16 +59,10 @@ static void app_create_vulkan_inst(t_Application *app) {
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
 
-    app->enable_validation_layers = 1;
-
-#ifdef NDEBUG
-    app->enable_validation_layers = 0;
-#endif
-
     VkDebugUtilsMessengerCreateInfoEXT debug_create_info = {};
 
-    if(app->enable_validation_layers) {
-        app_enable_validation(app, &create_info);
+    if(ENABLE_VALIDATION_LAYERS) {
+        val_enable(&app->validation, &create_info);
 
         debug_populate_messenger_create_info(&debug_create_info);
         create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debug_create_info;
@@ -111,11 +71,11 @@ static void app_create_vulkan_inst(t_Application *app) {
     }
 
     const char** extensions = NULL;
-    app_enable_extensions(&create_info, &extensions, app->enable_validation_layers);
+    app_enable_extensions(&create_info, &extensions);
 
     const VkResult result = vkCreateInstance(&create_info, NULL, &app->vk_instance);
 
-    if(app->enable_validation_layers) {
+    if(ENABLE_VALIDATION_LAYERS) {
         printf("Enabled Vulkan extensions:\n");
         for (uint32_t i = 0; i < create_info.enabledExtensionCount; i++) {
             printf("  %s\n", extensions[i]);
@@ -297,10 +257,10 @@ static void app_create_vertex_buffer(t_Application *app) {
 static void app_vulkan_init(t_Application *app) {
     debug_print_available_extensions();
     app_create_vulkan_inst(app);
-    debug_setup_messenger(app);
+    debug_setup_messenger(ENABLE_VALIDATION_LAYERS, &app->vk_instance, &app->debug_messenger);
 
     app->device = device_init(&app->vk_instance, app->window, &app->indices,
-        app_check_validation_layer_support(app->validation_layers, app->validation_size), app->validation_layers, app->validation_size);
+        val_check_layer_support(app->validation.validation_layers, app->validation.validation_size), app->validation.validation_layers, app->validation.validation_size);
 
     //*****SWAP CHAIN CREATION*****
     app->indices = app_find_queue_families(&app->device.surface, &app->device.physical_device);
@@ -343,22 +303,17 @@ void app_init(t_Application *app) {
 
     //initialise vertices
 
+    //todo move vertex buffer to own file
     app->vertice_size = 3;
     app->vertices = (t_Vertex*)malloc(sizeof(t_Vertex) * app->vertice_size);
     app->vertices[0] = (t_Vertex){{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}};
     app->vertices[1] = (t_Vertex){{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}};
     app->vertices[2] = (t_Vertex){{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}};
 
-    const char *default_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
-    app->validation_size = 1;
-    app->validation_layers = malloc(app->validation_size * sizeof(char *));
-    for (size_t i = 0; i < app->validation_size; i++) {
-        app->validation_layers[i] = default_validation_layers[i];
-    }
+    //todo maybe pass macro enable here
+    app->validation = val_init();
 
     app_vulkan_init(app);
-
-    free(app->validation_layers);
 }
 
 static void app_draw_frame(t_Application *app) {
@@ -437,6 +392,7 @@ void app_end(const t_Application *app) {
         vkDestroySemaphore(app->device.instance, app->image_available_semaphores[i], NULL);
         vkDestroyFence(app->device.instance, app->in_flight_fences[i], NULL);
     }
+    //todo move renderer to own file
     free(app->command_buffers);
     free(app->image_available_semaphores);
     free(app->render_finished_semaphores);
@@ -445,12 +401,9 @@ void app_end(const t_Application *app) {
     vkDestroyCommandPool(app->device.instance, app->command_pool, NULL);
 
     pipeline_destroy(&app->pipeline, &app->device.instance);
-
-    if (app->enable_validation_layers) {
-        debug_destroy_utils_messenger_ext(app->vk_instance, app->debug_messenger, NULL);
-    }
-
+    val_cleanup(&app->validation, &app->vk_instance, &app->debug_messenger);
     device_destroy(&app->device, &app->vk_instance);
+
     vkDestroyInstance(app->vk_instance, NULL);
     glfwDestroyWindow(app->window);
     glfwTerminate();

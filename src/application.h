@@ -4,24 +4,28 @@
 #include <stdio.h>
 #include <cglm/mat4.h>
 #include <vulkan/vulkan_core.h>
-#include "swap_chain.h"
+#include "vk_swap_chain.h"
 #include "utils.h"
-#include "vulkan_device.h"
-#include "vulkan_pipeline.h"
+#include "vk_device.h"
+#include "vk_pipeline.h"
+#include "vk_validation.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
+#ifdef NDEBUG
+    #define ENABLE_VALIDATION_LAYERS 0
+#else
+    #define ENABLE_VALIDATION_LAYERS 1
+#endif
 
 typedef struct GLFWwindow GLFWwindow;
+
 
 typedef struct Application {
     GLFWwindow *window;
     VkInstance vk_instance;
     VkDebugUtilsMessengerEXT debug_messenger;
-    uint8_t enable_validation_layers;
-    const char **validation_layers;
-    uint32_t validation_size;
-
+    t_Validation validation;
     t_Device device;
     t_QueueFamilyIndices indices;
     t_SwapChain swap_chain;
