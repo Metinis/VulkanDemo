@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "vk_debug.h"
+#include "vk_renderer.h"
 
 static void app_enable_extensions(VkInstanceCreateInfo* create_info, const char*** extensions_ptr) {
 
@@ -120,114 +121,9 @@ t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const 
     return indices;
 }
 
-static void app_create_command_pool(t_Application *app) {
-    const t_QueueFamilyIndices queue_family_indices = app_find_queue_families(&app->device.surface, &app->device.physical_device);
 
-    const VkCommandPoolCreateInfo pool_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        .queueFamilyIndex = queue_family_indices.graphics_family.value
-    };
-
-    if (vkCreateCommandPool(app->device.instance, &pool_info, NULL, &app->command_pool) != VK_SUCCESS) {
-        printf("Failed to create command pool! \n");
-    }
-}
-static void app_create_command_buffers(t_Application *app) {
-    app->command_buffers = (VkCommandBuffer*)malloc(sizeof(VkCommandBuffer) * MAX_FRAMES_IN_FLIGHT);
-    const VkCommandBufferAllocateInfo alloc_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = app->command_pool,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = MAX_FRAMES_IN_FLIGHT,
-    };
-
-    if (vkAllocateCommandBuffers(app->device.instance, &alloc_info, app->command_buffers) != VK_SUCCESS) {
-        printf("Failed to create command buffer! \n");
-    }
-
-}
-static void app_record_command_buffer(const t_Application *app, const VkCommandBuffer *command_buffer, const uint32_t image_index) {
-    const VkCommandBufferBeginInfo begin_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = 0, // Optional
-        .pInheritanceInfo = NULL, // Optional
-    };
-    if (vkBeginCommandBuffer(*command_buffer, &begin_info) != VK_SUCCESS) {
-        printf("Failed to begin command buffer! \n");
-    }
-    VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-
-    const VkRenderPassBeginInfo render_pass_info = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = app->pipeline.render_pass,
-        .framebuffer = app->swap_chain.framebuffers[image_index],
-        .renderArea.offset = {0, 0},
-        .renderArea.extent = app->swap_chain.extent,
-        .clearValueCount = 1,
-        .pClearValues = &clear_color
-    };
-
-    vkCmdBeginRenderPass(*command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-
-    vkCmdBindPipeline(*command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, app->pipeline.graphics_pipeline);
-
-    VkBuffer vertexBuffers[] = {app->vertex_buffer};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(*command_buffer, 0, 1, vertexBuffers, offsets);
-
-    vkCmdDraw(*command_buffer, app->vertice_size, 1, 0, 0);
-
-
-    const VkViewport viewport = {
-        .x = 0.0f,
-        .y = 0.0f,
-        .width = (float)(app->swap_chain.extent.width),
-        .height = (float)(app->swap_chain.extent.height),
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-    };
-    vkCmdSetViewport(*command_buffer, 0, 1, &viewport);
-
-    const VkRect2D scissor = {
-    .offset = {0, 0},
-    .extent = app->swap_chain.extent,
-    };
-    vkCmdSetScissor(*command_buffer, 0, 1, &scissor);
-
-    vkCmdDraw(*command_buffer, 3, 1, 0, 0);
-
-    vkCmdEndRenderPass(*command_buffer);
-
-    if (vkEndCommandBuffer(*command_buffer) != VK_SUCCESS) {
-        printf("Failed to end command buffer! \n");
-    }
-
-}
-static void app_create_sync_objects(t_Application *app) {
-    app->image_available_semaphores = (VkSemaphore*)malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
-    app->render_finished_semaphores = (VkSemaphore*)malloc(sizeof(VkSemaphore) * MAX_FRAMES_IN_FLIGHT);
-    app->in_flight_fences = (VkFence*)malloc(sizeof(VkFence) * MAX_FRAMES_IN_FLIGHT);
-
-    const VkSemaphoreCreateInfo semaphore_info = {
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
-    };
-    const VkFenceCreateInfo fence_info = {
-        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-        .flags = VK_FENCE_CREATE_SIGNALED_BIT
-    };
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(app->device.instance, &semaphore_info, NULL, &app->image_available_semaphores[i]) != VK_SUCCESS ||
-        vkCreateSemaphore(app->device.instance, &semaphore_info, NULL, &app->render_finished_semaphores[i]) != VK_SUCCESS ||
-        vkCreateFence(app->device.instance, &fence_info, NULL, &app->in_flight_fences[i]) != VK_SUCCESS) {
-            printf("Failed to create semaphores! \n");
-        }
-    }
-
-
-}
 static void app_create_vertex_buffer(t_Application *app) {
-    VkBufferCreateInfo buffer_info = {
+    const VkBufferCreateInfo buffer_info = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .size = sizeof(app->vertices[0]) * app->vertice_size,
         .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -239,7 +135,7 @@ static void app_create_vertex_buffer(t_Application *app) {
     VkMemoryRequirements mem_requirements;
     vkGetBufferMemoryRequirements(app->device.instance, app->vertex_buffer, &mem_requirements);
 
-    VkMemoryAllocateInfo alloc_info = {
+    const VkMemoryAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = mem_requirements.size,
         .memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, app->device.physical_device)
@@ -275,16 +171,14 @@ static void app_vulkan_init(t_Application *app) {
     swap_chain_create_frame_buffers(&app->swap_chain, &app->device.instance, &app->pipeline.render_pass);
     //*****SWAP CHAIN CREATION*****
 
-    app_create_command_pool(app);
     app_create_vertex_buffer(app);
-    app_create_command_buffers(app);
-    app_create_sync_objects(app);
+    app->renderer = renderer_init(&app->indices, &app->device.instance);
 }
 
 static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {
     t_Application *app = (t_Application *)glfwGetWindowUserPointer(window);
 
-    app->framebuffer_resized = 1;
+    app->renderer.framebuffer_resized = 1;
 
 }
 void app_init(t_Application *app) {
@@ -298,9 +192,6 @@ void app_init(t_Application *app) {
     glfwSetWindowUserPointer(app->window, app);
     glfwSetFramebufferSizeCallback(app->window, framebuffer_resize_callback);
 
-    app->current_frame = 0;
-    app->framebuffer_resized = 0;
-
     //initialise vertices
 
     //todo move vertex buffer to own file
@@ -310,75 +201,15 @@ void app_init(t_Application *app) {
     app->vertices[1] = (t_Vertex){{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}};
     app->vertices[2] = (t_Vertex){{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}};
 
-    //todo maybe pass macro enable here
-    app->validation = val_init();
+    app->validation = val_init(ENABLE_VALIDATION_LAYERS);
 
     app_vulkan_init(app);
-}
-
-static void app_draw_frame(t_Application *app) {
-    vkWaitForFences(app->device.instance, 1, &app->in_flight_fences[app->current_frame], VK_TRUE, UINT64_MAX);
-
-    uint32_t image_index;
-    VkResult result = vkAcquireNextImageKHR(app->device.instance, app->swap_chain.instance, UINT64_MAX, app->image_available_semaphores[app->current_frame], VK_NULL_HANDLE, &image_index);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || app->framebuffer_resized) {
-        app->framebuffer_resized = 0;
-        swap_chain_recreate(&app->swap_chain, &app->device.surface, &app->device.instance, &app->device.physical_device, app->window, &app->indices);
-        return;
-    } else if (result != VK_SUCCESS) {
-        printf("Failed to acquire swap chain! \n");
-    }
-    vkResetFences(app->device.instance, 1, &app->in_flight_fences[app->current_frame]);
-
-    vkResetCommandBuffer(app->command_buffers[app->current_frame], 0);
-
-    app_record_command_buffer(app, &app->command_buffers[app->current_frame], image_index);
-    const VkSemaphore wait_semaphores[] = {app->image_available_semaphores[app->current_frame]};
-    const VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    const VkSemaphore signal_semaphores[] = {app->render_finished_semaphores[app->current_frame]};
-
-    const VkSubmitInfo submit_info = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = wait_semaphores,
-        .pWaitDstStageMask = wait_stages,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &app->command_buffers[app->current_frame],
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores = signal_semaphores,
-    };
-
-    if (vkQueueSubmit(app->device.graphics_queue, 1, &submit_info, app->in_flight_fences[app->current_frame]) != VK_SUCCESS) {
-        printf("Failed to submit draw buffer! \n");
-    }
-
-    const VkSwapchainKHR swap_chains[] = {app->swap_chain.instance};
-
-    const VkPresentInfoKHR present_info = {
-        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = signal_semaphores,
-        .swapchainCount = 1,
-        .pSwapchains = swap_chains,
-        .pImageIndices = &image_index,
-    };
-
-    result = vkQueuePresentKHR(app->device.present_queue, &present_info);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        swap_chain_recreate(&app->swap_chain, &app->device.surface, &app->device.instance, &app->device.physical_device, app->window, &app->indices);
-    } else if (result != VK_SUCCESS) {
-        printf("Failed to present swap chain image!\n");
-    }
-
-    app->current_frame = (app->current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
-
 }
 void app_run(t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
-        app_draw_frame(app);
+        renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
+            &app->pipeline, &app->vertex_buffer, app->vertice_size);
     }
     vkDeviceWaitIdle(app->device.instance);
 }
@@ -387,18 +218,9 @@ void app_end(const t_Application *app) {
 
     vkDestroyBuffer(app->device.instance, app->vertex_buffer, NULL);
     vkFreeMemory(app->device.instance, app->vertex_buffer_memory, NULL);
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(app->device.instance, app->render_finished_semaphores[i], NULL);
-        vkDestroySemaphore(app->device.instance, app->image_available_semaphores[i], NULL);
-        vkDestroyFence(app->device.instance, app->in_flight_fences[i], NULL);
-    }
-    //todo move renderer to own file
-    free(app->command_buffers);
-    free(app->image_available_semaphores);
-    free(app->render_finished_semaphores);
-    free(app->in_flight_fences);
+
+    renderer_cleanup(&app->renderer, &app->device.instance);
     free(app->vertices);
-    vkDestroyCommandPool(app->device.instance, app->command_pool, NULL);
 
     pipeline_destroy(&app->pipeline, &app->device.instance);
     val_cleanup(&app->validation, &app->vk_instance, &app->debug_messenger);

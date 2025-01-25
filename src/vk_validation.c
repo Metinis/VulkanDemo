@@ -7,9 +7,10 @@
 #include "vk_debug.h"
 
 
-t_Validation val_init() {
+t_Validation val_init(const uint8_t is_enabled) {
     t_Validation validation;
     const char *default_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
+    validation.enable_validation_layers = is_enabled;
     validation.validation_size = 1;
     validation.validation_layers = malloc(validation.validation_size * sizeof(char *));
     for (size_t i = 0; i < validation.validation_size; i++) {
@@ -52,7 +53,7 @@ void val_enable(const t_Validation *validation, VkInstanceCreateInfo* create_inf
 
 }
 void val_cleanup(const t_Validation *validation, const VkInstance *instance, const VkDebugUtilsMessengerEXT *debug_messenger) {
-    if (ENABLE_VALIDATION_LAYERS) {
+    if (validation->enable_validation_layers) {
         debug_destroy_utils_messenger_ext(*instance, *debug_messenger, NULL);
     }
     free(validation->validation_layers);

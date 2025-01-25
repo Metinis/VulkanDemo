@@ -8,9 +8,10 @@
 #include "utils.h"
 #include "vk_device.h"
 #include "vk_pipeline.h"
+#include "vk_renderer.h"
 #include "vk_validation.h"
 
-#define MAX_FRAMES_IN_FLIGHT 2
+
 
 #ifdef NDEBUG
     #define ENABLE_VALIDATION_LAYERS 0
@@ -30,13 +31,7 @@ typedef struct Application {
     t_QueueFamilyIndices indices;
     t_SwapChain swap_chain;
     t_Pipeline pipeline;
-    VkCommandPool command_pool;
-    VkCommandBuffer* command_buffers;
-    VkSemaphore* image_available_semaphores;
-    VkSemaphore* render_finished_semaphores;
-    VkFence* in_flight_fences;
-    uint32_t current_frame;
-    uint8_t framebuffer_resized;
+    t_Renderer renderer;
     uint32_t vertice_size;
     t_Vertex *vertices;
     VkBuffer vertex_buffer;
