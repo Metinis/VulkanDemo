@@ -10,11 +10,11 @@
 t_Validation val_init(const uint8_t is_enabled) {
     t_Validation validation;
     const char *default_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
-    validation.enable_validation_layers = is_enabled;
-    validation.validation_size = 1;
-    validation.validation_layers = malloc(validation.validation_size * sizeof(char *));
-    for (size_t i = 0; i < validation.validation_size; i++) {
-        validation.validation_layers[i] = default_validation_layers[i];
+    validation.is_enabled = is_enabled;
+    validation.size = 1;
+    validation.layers = malloc(validation.size * sizeof(char *));
+    for (size_t i = 0; i < validation.size; i++) {
+        validation.layers[i] = default_validation_layers[i];
     }
     return validation;
 }
@@ -42,9 +42,9 @@ uint8_t val_check_layer_support(const char** validation_layers, const size_t val
 }
 void val_enable(const t_Validation *validation, VkInstanceCreateInfo* create_info) {
 
-    if (val_check_layer_support(validation->validation_layers, validation->validation_size)) {
-        create_info->enabledLayerCount = (uint32_t)(validation->validation_size);
-        create_info->ppEnabledLayerNames = validation->validation_layers;
+    if (val_check_layer_support(validation->layers, validation->size)) {
+        create_info->enabledLayerCount = (uint32_t)(validation->size);
+        create_info->ppEnabledLayerNames = validation->layers;
         printf("Validation layers enabled! \n");
     } else {
         create_info->enabledLayerCount = 0;
@@ -53,8 +53,8 @@ void val_enable(const t_Validation *validation, VkInstanceCreateInfo* create_inf
 
 }
 void val_cleanup(const t_Validation *validation, const VkInstance *instance, const VkDebugUtilsMessengerEXT *debug_messenger) {
-    if (validation->enable_validation_layers) {
+    if (validation->is_enabled) {
         debug_destroy_utils_messenger_ext(*instance, *debug_messenger, NULL);
     }
-    free(validation->validation_layers);
+    free(validation->layers);
 }

@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "utils.h"
+#include "vk_vertex_buffers.h"
 
 static VkShaderModule pipeline_create_shader_module(const VkDevice *device, const unsigned char* code, const size_t file_size) {
     const VkShaderModuleCreateInfo create_info = {

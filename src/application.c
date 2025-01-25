@@ -122,41 +122,14 @@ t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const 
 }
 
 
-static void app_create_vertex_buffer(t_Application *app) {
-    const VkBufferCreateInfo buffer_info = {
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .size = sizeof(app->vertices[0]) * app->vertice_size,
-        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        .sharingMode = VK_SHARING_MODE_EXCLUSIVE
-    };
-    if(vkCreateBuffer(app->device.instance, &buffer_info, NULL, &app->vertex_buffer) != VK_SUCCESS) {
-        printf("Failed to create a vertex buffer! \n");
-    }
-    VkMemoryRequirements mem_requirements;
-    vkGetBufferMemoryRequirements(app->device.instance, app->vertex_buffer, &mem_requirements);
 
-    const VkMemoryAllocateInfo alloc_info = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = mem_requirements.size,
-        .memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, app->device.physical_device)
-    };
-    if(vkAllocateMemory(app->device.instance, &alloc_info, NULL, &app->vertex_buffer_memory) != VK_SUCCESS) {
-        printf("Failed to allocate vertex buffer memory! \n");
-    }
-    vkBindBufferMemory(app->device.instance, app->vertex_buffer, app->vertex_buffer_memory, 0);
-
-    void* data;
-    vkMapMemory(app->device.instance, app->vertex_buffer_memory, 0, buffer_info.size, 0, &data);
-    memcpy(data, app->vertices, buffer_info.size);
-    vkUnmapMemory(app->device.instance, app->vertex_buffer_memory);
-}
 static void app_vulkan_init(t_Application *app) {
     debug_print_available_extensions();
     app_create_vulkan_inst(app);
     debug_setup_messenger(ENABLE_VALIDATION_LAYERS, &app->vk_instance, &app->debug_messenger);
 
     app->device = device_init(&app->vk_instance, app->window, &app->indices,
-        val_check_layer_support(app->validation.validation_layers, app->validation.validation_size), app->validation.validation_layers, app->validation.validation_size);
+        val_check_layer_support(app->validation.layers, app->validation.size), app->validation.layers, app->validation.size);
 
     //*****SWAP CHAIN CREATION*****
     app->indices = app_find_queue_families(&app->device.surface, &app->device.physical_device);
@@ -171,7 +144,7 @@ static void app_vulkan_init(t_Application *app) {
     swap_chain_create_frame_buffers(&app->swap_chain, &app->device.instance, &app->pipeline.render_pass);
     //*****SWAP CHAIN CREATION*****
 
-    app_create_vertex_buffer(app);
+    app->vertex_buffer = vb_init(&app->device.instance, &app->device.physical_device);
     app->renderer = renderer_init(&app->indices, &app->device.instance);
 }
 
@@ -192,15 +165,6 @@ void app_init(t_Application *app) {
     glfwSetWindowUserPointer(app->window, app);
     glfwSetFramebufferSizeCallback(app->window, framebuffer_resize_callback);
 
-    //initialise vertices
-
-    //todo move vertex buffer to own file
-    app->vertice_size = 3;
-    app->vertices = (t_Vertex*)malloc(sizeof(t_Vertex) * app->vertice_size);
-    app->vertices[0] = (t_Vertex){{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}};
-    app->vertices[1] = (t_Vertex){{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}};
-    app->vertices[2] = (t_Vertex){{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}};
-
     app->validation = val_init(ENABLE_VALIDATION_LAYERS);
 
     app_vulkan_init(app);
@@ -209,18 +173,16 @@ void app_run(t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
         renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
-            &app->pipeline, &app->vertex_buffer, app->vertice_size);
+            &app->pipeline, &app->vertex_buffer);
     }
     vkDeviceWaitIdle(app->device.instance);
 }
 void app_end(const t_Application *app) {
     swap_chain_cleanup(&app->swap_chain, &app->device.instance);
 
-    vkDestroyBuffer(app->device.instance, app->vertex_buffer, NULL);
-    vkFreeMemory(app->device.instance, app->vertex_buffer_memory, NULL);
+    vb_cleanup(&app->vertex_buffer, &app->device.instance);
 
     renderer_cleanup(&app->renderer, &app->device.instance);
-    free(app->vertices);
 
     pipeline_destroy(&app->pipeline, &app->device.instance);
     val_cleanup(&app->validation, &app->vk_instance, &app->debug_messenger);

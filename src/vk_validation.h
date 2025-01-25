@@ -4,9 +4,9 @@
 #include "utils.h"
 
 typedef struct Validation {
-    uint8_t enable_validation_layers;
-    const char **validation_layers;
-    uint32_t validation_size;
+    uint8_t is_enabled;
+    const char **layers;
+    uint32_t size;
 }t_Validation;
 
 t_Validation val_init(uint8_t is_enabled);

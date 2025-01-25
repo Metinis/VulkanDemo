@@ -32,12 +32,6 @@ typedef struct Vertex {
     vec3 color;
 }t_Vertex;
 
-VkVertexInputBindingDescription get_binding_description_vertex();
-
-void get_attribute_descriptions_vertex(VkVertexInputAttributeDescription* attribute_descriptions);
-
 uint8_t is_complete(const t_QueueFamilyIndices* indices);
-
-uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties, VkPhysicalDevice physical_device);
 
 unsigned char* read_file(const char* filename, size_t* file_size);

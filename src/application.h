@@ -10,7 +10,7 @@
 #include "vk_pipeline.h"
 #include "vk_renderer.h"
 #include "vk_validation.h"
-
+#include "vk_vertex_buffers.h"
 
 
 #ifdef NDEBUG
@@ -32,11 +32,7 @@ typedef struct Application {
     t_SwapChain swap_chain;
     t_Pipeline pipeline;
     t_Renderer renderer;
-    uint32_t vertice_size;
-    t_Vertex *vertices;
-    VkBuffer vertex_buffer;
-    VkDeviceMemory vertex_buffer_memory;
-
+    t_VertexBuffer vertex_buffer;
 }t_Application;
 
 t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device);
