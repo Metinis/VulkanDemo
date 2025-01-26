@@ -1,4 +1,4 @@
-#include "vk_vertex_buffers.h"
+#include "vk_buffers.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -109,7 +109,7 @@ void buffer_create(const VkDeviceSize size, const VkBufferUsageFlags usage, cons
     }
     vkBindBufferMemory(device->instance, *buffer, *buffer_memory, 0);
 }
-static void vb_create(t_VertexBuffer *vertex_buffer, const t_Device *device, const VkCommandPool *command_pool) {
+static void buffer_vertex_create(t_VertexBuffer *vertex_buffer, const t_Device *device, const VkCommandPool *command_pool) {
     const VkDeviceSize buffer_size = sizeof(vertex_buffer->vertices[0]) * vertex_buffer->size;
 
     VkBuffer staging_buffer;
@@ -123,26 +123,72 @@ static void vb_create(t_VertexBuffer *vertex_buffer, const t_Device *device, con
     vkUnmapMemory(device->instance, staging_buffer_mem);
 
     buffer_create(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        &vertex_buffer->instance, &vertex_buffer->buffer_memory, device);
-    buffer_copy(command_pool, device, buffer_size, &staging_buffer, &vertex_buffer->instance);
+        &vertex_buffer->buffer.instance, &vertex_buffer->buffer.buffer_memory, device);
+    buffer_copy(command_pool, device, buffer_size, &staging_buffer, &vertex_buffer->buffer.instance);
 
     //cleanup
     vkDestroyBuffer(device->instance, staging_buffer, NULL);
     vkFreeMemory(device->instance, staging_buffer_mem, NULL);
 }
-t_VertexBuffer vb_init(const t_Device *device, const VkCommandPool *command_pool) {
+t_VertexBuffer buffer_vertex_init(const t_Device *device, const VkCommandPool *command_pool) {
     t_VertexBuffer vertex_buffer;
-    vertex_buffer.size = 3;
+    vertex_buffer.size = 4;
     vertex_buffer.vertices = (t_Vertex*)malloc(sizeof(t_Vertex) * vertex_buffer.size);
-    vertex_buffer.vertices[0] = (t_Vertex){{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}};
-    vertex_buffer.vertices[1] = (t_Vertex){{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}};
-    vertex_buffer.vertices[2] = (t_Vertex){{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}};
-    vb_create(&vertex_buffer, device, command_pool);
+    const t_Vertex predefined_vertices[] = {
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+    };
+    for (size_t i = 0; i < vertex_buffer.size; ++i) {
+        vertex_buffer.vertices[i] = predefined_vertices[i];
+    }
+
+    buffer_vertex_create(&vertex_buffer, device, command_pool);
     return vertex_buffer;
 }
-void vb_cleanup(const t_VertexBuffer *vertex_buffer, const VkDevice *device) {
-    vkDestroyBuffer(*device, vertex_buffer->instance, NULL);
-    vkFreeMemory(*device, vertex_buffer->buffer_memory, NULL);
+void buffer_vertex_cleanup(const t_VertexBuffer *vertex_buffer, const VkDevice *device) {
+    vkDestroyBuffer(*device, vertex_buffer->buffer.instance, NULL);
+    vkFreeMemory(*device, vertex_buffer->buffer.buffer_memory, NULL);
 
     free(vertex_buffer->vertices);
+}
+static void buffer_index_create(t_IndexBuffer *index_buffer, const t_Device *device, const VkCommandPool *command_pool) {
+    const VkDeviceSize buffer_size = sizeof(index_buffer->indices[0]) * index_buffer->size;
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_mem;
+    buffer_create(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &staging_buffer, &staging_buffer_mem, device);
+
+    void* data;
+    vkMapMemory(device->instance, staging_buffer_mem, 0, buffer_size, 0, &data);
+    memcpy(data, index_buffer->indices, buffer_size);
+    vkUnmapMemory(device->instance, staging_buffer_mem);
+
+    buffer_create(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &index_buffer->buffer.instance, &index_buffer->buffer.buffer_memory, device);
+    buffer_copy(command_pool, device, buffer_size, &staging_buffer, &index_buffer->buffer.instance);
+
+    //cleanup
+    vkDestroyBuffer(device->instance, staging_buffer, NULL);
+    vkFreeMemory(device->instance, staging_buffer_mem, NULL);
+}
+t_IndexBuffer buffer_index_init(const t_Device *device, const VkCommandPool *command_pool) {
+    t_IndexBuffer index_buffer;
+    index_buffer.size = 6;
+    index_buffer.indices = (uint16_t*)malloc(sizeof(uint16_t) * index_buffer.size);
+    const uint16_t predefined_indices[] = {0, 1, 2, 2, 3, 0};
+    for (size_t i = 0; i < index_buffer.size; ++i) {
+        index_buffer.indices[i] = predefined_indices[i];
+    }
+    buffer_index_create(&index_buffer, device, command_pool);
+
+    return index_buffer;
+}
+void buffer_index_cleanup(const t_IndexBuffer *index_buffer, const VkDevice *device) {
+    vkDestroyBuffer(*device, index_buffer->buffer.instance, NULL);
+    vkFreeMemory(*device, index_buffer->buffer.buffer_memory, NULL);
+
+    free(index_buffer->indices);
 }

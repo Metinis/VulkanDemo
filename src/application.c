@@ -145,7 +145,8 @@ static void app_vulkan_init(t_Application *app) {
     //*****SWAP CHAIN CREATION*****
 
     app->renderer = renderer_init(&app->indices, &app->device.instance);
-    app->vertex_buffer = vb_init(&app->device, &app->renderer.command_pool);
+    app->vertex_buffer = buffer_vertex_init(&app->device, &app->renderer.command_pool);
+    app->index_buffer = buffer_index_init(&app->device, &app->renderer.command_pool);
 }
 
 static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {
@@ -173,14 +174,15 @@ void app_run(t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
         renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
-            &app->pipeline, &app->vertex_buffer);
+            &app->pipeline, &app->vertex_buffer, &app->index_buffer);
     }
     vkDeviceWaitIdle(app->device.instance);
 }
 void app_end(const t_Application *app) {
     swap_chain_cleanup(&app->swap_chain, &app->device.instance);
 
-    vb_cleanup(&app->vertex_buffer, &app->device.instance);
+    buffer_vertex_cleanup(&app->vertex_buffer, &app->device.instance);
+    buffer_index_cleanup(&app->index_buffer, &app->device.instance);
 
     renderer_cleanup(&app->renderer, &app->device.instance);
 

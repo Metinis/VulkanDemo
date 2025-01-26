@@ -31,7 +31,7 @@ static void renderer_create_command_buffers(t_Renderer *renderer, const VkDevice
 
 }
 void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, const uint32_t image_index, const t_Pipeline *pipeline,
-    const t_SwapChain *swap_chain, const VkBuffer vertex_buffer, const uint32_t vertice_size) {
+    const t_SwapChain *swap_chain, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer) {
     const VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0, // Optional
@@ -56,11 +56,11 @@ void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, const
 
     vkCmdBindPipeline(*command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
 
-    VkBuffer vertexBuffers[] = {vertex_buffer};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(*command_buffer, 0, 1, vertexBuffers, offsets);
+    const VkBuffer vertexBuffers[] = {vertex_buffer->buffer.instance};
+    const VkDeviceSize offsets[] = {0};
 
-    vkCmdDraw(*command_buffer, vertice_size, 1, 0, 0);
+
+    //vkCmdDrawIndexed(*command_buffer, index_buffer->size, 1, 0, 0, 0);
 
 
     const VkViewport viewport = {
@@ -79,7 +79,11 @@ void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, const
     };
     vkCmdSetScissor(*command_buffer, 0, 1, &scissor);
 
-    vkCmdDraw(*command_buffer, 3, 1, 0, 0);
+    //vkCmdDraw(*command_buffer, 3, 1, 0, 0);
+    vkCmdBindVertexBuffers(*command_buffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(*command_buffer, index_buffer->buffer.instance, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdDrawIndexed(*command_buffer, index_buffer->size, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(*command_buffer);
 
@@ -118,7 +122,7 @@ t_Renderer renderer_init(const t_QueueFamilyIndices *indices, const VkDevice *de
     return renderer;
 }
 void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, const t_SwapChain *swap_chain, GLFWwindow *window,
-    const t_QueueFamilyIndices *indices, const t_Pipeline *pipeline, const t_VertexBuffer *vertex_buffer) {
+    const t_QueueFamilyIndices *indices, const t_Pipeline *pipeline, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer) {
     vkWaitForFences(device->instance, 1, &renderer->in_flight_fences[renderer->current_frame], VK_TRUE, UINT64_MAX);
 
     uint32_t image_index;
@@ -136,7 +140,7 @@ void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, const t_S
     vkResetCommandBuffer(renderer->command_buffers[renderer->current_frame], 0);
 
     renderer_record_command_buffer(&renderer->command_buffers[renderer->current_frame], image_index, pipeline, swap_chain,
-        vertex_buffer->instance, vertex_buffer->size);
+        vertex_buffer, index_buffer);
     const VkSemaphore wait_semaphores[] = {renderer->image_available_semaphores[renderer->current_frame]};
     const VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     const VkSemaphore signal_semaphores[] = {renderer->render_finished_semaphores[renderer->current_frame]};

@@ -5,7 +5,7 @@
 #include "vk_pipeline.h"
 #include "vk_swap_chain.h"
 #include "vk_device.h"
-#include "vk_vertex_buffers.h"
+#include "vk_buffers.h"
 
 #define MAX_FRAMES_IN_FLIGHT 2
 
@@ -20,8 +20,8 @@ typedef struct Renderer {
 }t_Renderer;
 
 void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, uint32_t image_index, const t_Pipeline *pipeline,
-    const t_SwapChain *swap_chain, VkBuffer vertex_buffer, uint32_t vertice_size);
+    const t_SwapChain *swap_chain, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer);
 t_Renderer renderer_init(const t_QueueFamilyIndices *indices, const VkDevice *device);
 void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, const t_SwapChain *swap_chain, GLFWwindow *window,
-    const t_QueueFamilyIndices *indices, const t_Pipeline *pipeline, const t_VertexBuffer *vertex_buffe);
+    const t_QueueFamilyIndices *indices, const t_Pipeline *pipeline, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer);
 void renderer_cleanup(const t_Renderer *renderer, const VkDevice *device);
