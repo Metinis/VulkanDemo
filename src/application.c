@@ -144,8 +144,8 @@ static void app_vulkan_init(t_Application *app) {
     swap_chain_create_frame_buffers(&app->swap_chain, &app->device.instance, &app->pipeline.render_pass);
     //*****SWAP CHAIN CREATION*****
 
-    app->vertex_buffer = vb_init(&app->device.instance, &app->device.physical_device);
     app->renderer = renderer_init(&app->indices, &app->device.instance);
+    app->vertex_buffer = vb_init(&app->device, &app->renderer.command_pool);
 }
 
 static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {

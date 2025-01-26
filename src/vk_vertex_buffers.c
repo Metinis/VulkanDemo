@@ -26,7 +26,7 @@ void get_attribute_descriptions_vertex(VkVertexInputAttributeDescription* attrib
         .offset = offsetof(t_Vertex, color)
     };
 }
-static uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties, VkPhysicalDevice physical_device) {
+static uint32_t find_memory_type(const uint32_t type_filter, const VkMemoryPropertyFlags properties, const VkPhysicalDevice physical_device) {
     VkPhysicalDeviceMemoryProperties mem_properties;
     vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
 
@@ -38,43 +38,106 @@ static uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags pro
     printf("failed to find suitable memory type! \n");
     return -1;
 }
+static void buffer_copy(const VkCommandPool *command_pool, const t_Device *device, const VkDeviceSize size, const VkBuffer *src_buffer, const VkBuffer *dst_buffer) {
+    //create command buffer
+    const VkCommandBufferAllocateInfo alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = *command_pool,
+        .commandBufferCount = 1
+    };
 
-void vb_create(t_VertexBuffer *vertex_buffer, const VkDevice *device, const VkPhysicalDevice *physical_device) {
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(device->instance, &alloc_info, &command_buffer);
+
+    //record copy to command buffer
+
+    const VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    const VkBufferCopy copy_region = {
+        .srcOffset = 0, // Optional
+        .dstOffset = 0, // Optional
+        .size = size
+    };
+
+    vkCmdCopyBuffer(command_buffer, *src_buffer, *dst_buffer, 1, &copy_region);
+
+    vkEndCommandBuffer(command_buffer);
+
+    //now execute command buffer
+
+    const VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &command_buffer
+    };
+
+    vkQueueSubmit(device->graphics_queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(device->graphics_queue);
+
+    //cleanup command buffer
+
+    vkFreeCommandBuffers(device->instance, *command_pool, 1, &command_buffer);
+
+}
+void buffer_create(const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties, VkBuffer *buffer,
+    VkDeviceMemory *buffer_memory, const t_Device *device) {
     const VkBufferCreateInfo buffer_info = {
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .size = sizeof(vertex_buffer->vertices[0]) * vertex_buffer->size,
-        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        .size = size,
+        .usage = usage,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE
     };
-    if(vkCreateBuffer(*device, &buffer_info, NULL, &vertex_buffer->instance) != VK_SUCCESS) {
+    if(vkCreateBuffer(device->instance, &buffer_info, NULL, buffer) != VK_SUCCESS) {
         printf("Failed to create a vertex buffer! \n");
     }
     VkMemoryRequirements mem_requirements;
-    vkGetBufferMemoryRequirements(*device, vertex_buffer->instance, &mem_requirements);
+    vkGetBufferMemoryRequirements(device->instance, *buffer, &mem_requirements);
 
     const VkMemoryAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = mem_requirements.size,
-        .memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, *physical_device)
+        .memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, properties, device->physical_device)
     };
-    if(vkAllocateMemory(*device, &alloc_info, NULL, &vertex_buffer->buffer_memory) != VK_SUCCESS) {
+    if(vkAllocateMemory(device->instance, &alloc_info, NULL, buffer_memory) != VK_SUCCESS) {
         printf("Failed to allocate vertex buffer memory! \n");
     }
-    vkBindBufferMemory(*device, vertex_buffer->instance, vertex_buffer->buffer_memory, 0);
+    vkBindBufferMemory(device->instance, *buffer, *buffer_memory, 0);
+}
+static void vb_create(t_VertexBuffer *vertex_buffer, const t_Device *device, const VkCommandPool *command_pool) {
+    const VkDeviceSize buffer_size = sizeof(vertex_buffer->vertices[0]) * vertex_buffer->size;
+
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_mem;
+    buffer_create(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &staging_buffer, &staging_buffer_mem, device);
 
     void* data;
-    vkMapMemory(*device, vertex_buffer->buffer_memory, 0, buffer_info.size, 0, &data);
-    memcpy(data, vertex_buffer->vertices, buffer_info.size);
-    vkUnmapMemory(*device, vertex_buffer->buffer_memory);
+    vkMapMemory(device->instance, staging_buffer_mem, 0, buffer_size, 0, &data);
+    memcpy(data, vertex_buffer->vertices, buffer_size);
+    vkUnmapMemory(device->instance, staging_buffer_mem);
+
+    buffer_create(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &vertex_buffer->instance, &vertex_buffer->buffer_memory, device);
+    buffer_copy(command_pool, device, buffer_size, &staging_buffer, &vertex_buffer->instance);
+
+    //cleanup
+    vkDestroyBuffer(device->instance, staging_buffer, NULL);
+    vkFreeMemory(device->instance, staging_buffer_mem, NULL);
 }
-t_VertexBuffer vb_init(const VkDevice *device, const VkPhysicalDevice *physical_device) {
+t_VertexBuffer vb_init(const t_Device *device, const VkCommandPool *command_pool) {
     t_VertexBuffer vertex_buffer;
     vertex_buffer.size = 3;
     vertex_buffer.vertices = (t_Vertex*)malloc(sizeof(t_Vertex) * vertex_buffer.size);
     vertex_buffer.vertices[0] = (t_Vertex){{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}};
     vertex_buffer.vertices[1] = (t_Vertex){{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}};
     vertex_buffer.vertices[2] = (t_Vertex){{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}};
-    vb_create(&vertex_buffer, device, physical_device);
+    vb_create(&vertex_buffer, device, command_pool);
     return vertex_buffer;
 }
 void vb_cleanup(const t_VertexBuffer *vertex_buffer, const VkDevice *device) {

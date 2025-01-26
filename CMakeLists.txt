@@ -32,7 +32,8 @@ add_executable(VulkanDemo src/main.c
         src/vk_vertex_buffers.c
         src/vk_vertex_buffers.h
         src/vk_renderer.c
-        src/vk_renderer.h)
+        src/vk_renderer.h
+        src/vk_device.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)
