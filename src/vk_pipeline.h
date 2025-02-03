@@ -9,5 +9,5 @@ typedef struct Pipeline {
     VkPipeline graphics_pipeline;
 }t_Pipeline;
 
-t_Pipeline pipeline_init(const VkDevice *device, const VkFormat *image_format, VkExtent2D *extent);
+t_Pipeline pipeline_init(const VkDevice *device, const VkFormat *image_format, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout);
 void pipeline_destroy(const t_Pipeline *pipeline, const VkDevice *device);

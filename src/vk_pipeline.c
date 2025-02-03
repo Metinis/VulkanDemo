@@ -17,7 +17,7 @@ static VkShaderModule pipeline_create_shader_module(const VkDevice *device, cons
     }
     return shader_module;
 }
-static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *device, VkExtent2D *extent) {
+static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *device, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout) {
     size_t vert_file_size;
     unsigned char* vert_shader_code = read_file("../resources/shader/vert.spv", &vert_file_size);
     size_t frag_file_size;
@@ -102,7 +102,7 @@ static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *devic
         .polygonMode = VK_POLYGON_MODE_FILL,
         .lineWidth = 1.0f,
         .cullMode = VK_CULL_MODE_BACK_BIT,
-        .frontFace = VK_FRONT_FACE_CLOCKWISE,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
         .depthBiasConstantFactor = 0.0f,
         .depthBiasClamp = 0.0f,
@@ -144,8 +144,8 @@ static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *devic
 
     VkPipelineLayoutCreateInfo pipeline_layout_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-        .setLayoutCount = 0, // Optional
-        .pSetLayouts = NULL, // Optional
+        .setLayoutCount = 1, // Optional
+        .pSetLayouts = descriptor_set_layout, // Optional
         .pushConstantRangeCount = 0, // Optional
         .pPushConstantRanges = NULL, // Optional
     };
@@ -226,10 +226,10 @@ static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *de
         printf("Failed to create render pass! \n");
     }
 }
-t_Pipeline pipeline_init(const VkDevice *device, const VkFormat *image_format, VkExtent2D *extent) {
+t_Pipeline pipeline_init(const VkDevice *device, const VkFormat *image_format, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout) {
     t_Pipeline pipeline;
     pipeline_create_render_pass(&pipeline, device, image_format);
-    pipeline_create_graphics(&pipeline, device, extent);
+    pipeline_create_graphics(&pipeline, device, extent, descriptor_set_layout);
     return pipeline;
 }
 void pipeline_destroy(const t_Pipeline *pipeline, const VkDevice *device) {

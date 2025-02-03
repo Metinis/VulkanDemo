@@ -137,8 +137,10 @@ static void app_vulkan_init(t_Application *app) {
 
     swap_chain_create_image_views(&app->swap_chain, &app->device.instance);
 
+    //descriptor_create_set_layout(&app->device.instance, &app->descriptor_set_layout);
+    app->descriptor = descriptor_init(&app->device.instance);
     //create pipeline
-    app->pipeline = pipeline_init(&app->device.instance, &app->swap_chain.image_format, &app->swap_chain.extent);
+    app->pipeline = pipeline_init(&app->device.instance, &app->swap_chain.image_format, &app->swap_chain.extent, &app->descriptor.set_layout);
 
 
     swap_chain_create_frame_buffers(&app->swap_chain, &app->device.instance, &app->pipeline.render_pass);
@@ -147,6 +149,9 @@ static void app_vulkan_init(t_Application *app) {
     app->renderer = renderer_init(&app->indices, &app->device.instance);
     app->vertex_buffer = buffer_vertex_init(&app->device, &app->renderer.command_pool);
     app->index_buffer = buffer_index_init(&app->device, &app->renderer.command_pool);
+    app->ubo_data = buffer_ubo_init(&app->device);
+
+    descriptor_populate(&app->device.instance, &app->descriptor, &app->ubo_data);
 }
 
 static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {
@@ -160,9 +165,9 @@ void app_init(t_Application *app) {
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    app->window = glfwCreateWindow(1280,720, "VulkanDemo", NULL, NULL);
+    app->window = glfwCreateWindow(800,600, "VulkanDemo", NULL, NULL);
     glfwSetWindowUserPointer(app->window, app);
     glfwSetFramebufferSizeCallback(app->window, framebuffer_resize_callback);
 
@@ -173,13 +178,17 @@ void app_init(t_Application *app) {
 void app_run(t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
-        renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
-            &app->pipeline, &app->vertex_buffer, &app->index_buffer);
+        //if(!app->renderer.framebuffer_resized)
+            renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
+            &app->pipeline, &app->vertex_buffer, &app->index_buffer, &app->ubo_data, &app->descriptor);
     }
     vkDeviceWaitIdle(app->device.instance);
 }
 void app_end(const t_Application *app) {
     swap_chain_cleanup(&app->swap_chain, &app->device.instance);
+
+    buffer_ubo_cleanup(&app->device.instance, &app->ubo_data);
+    descriptor_cleanup(&app->device.instance, &app->descriptor);
 
     buffer_vertex_cleanup(&app->vertex_buffer, &app->device.instance);
     buffer_index_cleanup(&app->index_buffer, &app->device.instance);

@@ -5,6 +5,7 @@
 
 
 
+
 static void renderer_create_command_pool(t_Renderer *renderer, const VkDevice *device, const t_QueueFamilyIndices *indices) {
     const VkCommandPoolCreateInfo pool_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -31,7 +32,8 @@ static void renderer_create_command_buffers(t_Renderer *renderer, const VkDevice
 
 }
 void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, const uint32_t image_index, const t_Pipeline *pipeline,
-    const t_SwapChain *swap_chain, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer) {
+    const t_SwapChain *swap_chain, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer, const t_DescriptorData *desc_data,
+    const uint32_t current_frame) {
     const VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         .flags = 0, // Optional
@@ -83,6 +85,10 @@ void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, const
     vkCmdBindVertexBuffers(*command_buffer, 0, 1, vertexBuffers, offsets);
 
     vkCmdBindIndexBuffer(*command_buffer, index_buffer->buffer.instance, 0, VK_INDEX_TYPE_UINT16);
+
+    vkCmdBindDescriptorSets(*command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline_layout, 0, 1,
+        &desc_data->desc_sets[current_frame], 0, NULL);
+
     vkCmdDrawIndexed(*command_buffer, index_buffer->size, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(*command_buffer);
@@ -122,7 +128,8 @@ t_Renderer renderer_init(const t_QueueFamilyIndices *indices, const VkDevice *de
     return renderer;
 }
 void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, const t_SwapChain *swap_chain, GLFWwindow *window,
-    const t_QueueFamilyIndices *indices, const t_Pipeline *pipeline, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer) {
+    const t_QueueFamilyIndices *indices, const t_Pipeline *pipeline, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer,
+    const t_UniformBufferData *ubo_data, const t_DescriptorData *desc_data) {
     vkWaitForFences(device->instance, 1, &renderer->in_flight_fences[renderer->current_frame], VK_TRUE, UINT64_MAX);
 
     uint32_t image_index;
@@ -135,12 +142,18 @@ void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, const t_S
     } else if (result != VK_SUCCESS) {
         printf("Failed to acquire swap chain! \n");
     }
+    //update ubo
+    buffer_ubo_update(renderer->current_frame, &swap_chain->extent, ubo_data->uniform_buffers_mapped);
+
     vkResetFences(device->instance, 1, &renderer->in_flight_fences[renderer->current_frame]);
 
     vkResetCommandBuffer(renderer->command_buffers[renderer->current_frame], 0);
 
     renderer_record_command_buffer(&renderer->command_buffers[renderer->current_frame], image_index, pipeline, swap_chain,
-        vertex_buffer, index_buffer);
+        vertex_buffer, index_buffer, desc_data, renderer->current_frame);
+    //VkSubmitInfo submit_info = {
+    //    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO
+    //};
     const VkSemaphore wait_semaphores[] = {renderer->image_available_semaphores[renderer->current_frame]};
     const VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     const VkSemaphore signal_semaphores[] = {renderer->render_finished_semaphores[renderer->current_frame]};

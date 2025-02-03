@@ -1,7 +1,9 @@
 #include "vk_buffers.h"
-
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+#include <cglm/cglm.h>
+#include "vk_renderer.h"
 
 VkVertexInputBindingDescription get_binding_description_vertex() {
     static VkVertexInputBindingDescription binding_description = {
@@ -191,4 +193,57 @@ void buffer_index_cleanup(const t_IndexBuffer *index_buffer, const VkDevice *dev
     vkFreeMemory(*device, index_buffer->buffer.buffer_memory, NULL);
 
     free(index_buffer->indices);
+}
+static void buffer_ubo_create(t_UniformBufferData *ubo_data, const t_Device *device) {
+    const VkDeviceSize buffer_size = sizeof(t_UniformBufferObject);
+
+    ubo_data->uniform_buffers = (VkBuffer*)malloc(MAX_FRAMES_IN_FLIGHT * sizeof(VkBuffer));
+    ubo_data->uniform_buffers_memory = (VkDeviceMemory*)malloc(MAX_FRAMES_IN_FLIGHT * sizeof(VkDeviceMemory));
+    ubo_data->uniform_buffers_mapped = (void**)malloc(MAX_FRAMES_IN_FLIGHT * sizeof(void*));
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        buffer_create(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            &ubo_data->uniform_buffers[i], &ubo_data->uniform_buffers_memory[i], device);
+        vkMapMemory(device->instance, ubo_data->uniform_buffers_memory[i], 0, buffer_size, 0, &ubo_data->uniform_buffers_mapped[i]);
+    }
+}
+static struct timespec start_time;
+t_UniformBufferData buffer_ubo_init(const t_Device *device) {
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    t_UniformBufferData ubo_data;
+    buffer_ubo_create(&ubo_data, device);
+    return ubo_data;
+}
+void buffer_ubo_cleanup(const VkDevice *device, const t_UniformBufferData *ubo_data) {
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyBuffer(*device, ubo_data->uniform_buffers[i], NULL);
+        vkFreeMemory(*device, ubo_data->uniform_buffers_memory[i], NULL);
+    }
+    free(ubo_data->uniform_buffers);
+    free(ubo_data->uniform_buffers_mapped);
+    free(ubo_data->uniform_buffers_memory);
+}
+
+
+void buffer_ubo_update(const uint32_t current_image, const VkExtent2D *extent_2d, void** uniform_buffers_mapped) {
+
+    struct timespec current_time;
+    clock_gettime(CLOCK_MONOTONIC, &current_time);
+
+    const float elapsed = (current_time.tv_sec - start_time.tv_sec) +
+                    (current_time.tv_nsec - start_time.tv_nsec) / 1e9f;
+    t_UniformBufferObject ubo = {};
+    glm_mat4_identity(ubo.model);
+    glm_vec3_rotate(ubo.model, glm_rad(90.0f) * elapsed, (vec3){0.0f, 0.0f, 1.0f});
+
+    glm_lookat((vec3){2.0f, 2.0f, 2.0f},
+               (vec3){0.0f, 0.0f, 0.0f},
+               (vec3){0.0f, 0.0f, 1.0f},
+               ubo.view);
+
+    glm_perspective(glm_rad(45.0f), extent_2d->width / extent_2d->height, 0.1f, 10.0f, ubo.proj);
+    ubo.proj[1][1] *= -1;
+
+    memcpy(uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
+
 }
