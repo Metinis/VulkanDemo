@@ -19,7 +19,8 @@ typedef struct Renderer {
     uint32_t current_frame;
     uint8_t framebuffer_resized;
 }t_Renderer;
-
+VkCommandBuffer begin_single_time_commands(const VkCommandPool *command_pool, const VkDevice *device);
+void end_single_time_commands(const VkCommandPool *command_pool, VkCommandBuffer *command_buffer, const t_Device *device);
 void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, uint32_t image_index, const t_Pipeline *pipeline,
     const t_SwapChain *swap_chain, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer, const t_DescriptorData *desc_data,
     uint32_t current_frame);

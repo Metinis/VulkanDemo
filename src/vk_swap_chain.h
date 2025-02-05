@@ -22,3 +22,4 @@ void swap_chain_recreate(const t_SwapChain *swap_chain, const VkSurfaceKHR *surf
     GLFWwindow *window, const t_QueueFamilyIndices *indices);
 void swap_chain_create_image_views(t_SwapChain *swap_chain, const VkDevice *device);
 void swap_chain_create_frame_buffers(t_SwapChain *swap_chain, const VkDevice *device, const VkRenderPass *render_pass);
+VkImageView create_image_view(VkImage image, VkFormat format, const VkDevice *device);

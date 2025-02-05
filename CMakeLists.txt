@@ -12,6 +12,8 @@ add_subdirectory(include/glfw)
 # Add cglm include directory
 include_directories(include/cglm/include)
 
+include_directories(include/stb)
+
 find_package(Vulkan REQUIRED)
 
 # Add VulkanDemo executable
@@ -35,7 +37,10 @@ add_executable(VulkanDemo src/main.c
         src/vk_renderer.h
         src/vk_device.h
         src/vk_descriptor.c
-        src/vk_descriptor.h)
+        src/vk_descriptor.h
+        include/stb/stb_image.h
+        src/texture.c
+        src/texture.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)

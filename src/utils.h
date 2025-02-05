@@ -30,6 +30,7 @@ typedef struct SwapChainSupportDetails {
 typedef struct Vertex {
     vec2 pos;
     vec3 color;
+    vec2 tex_coord;
 }t_Vertex;
 
 uint8_t is_complete(const t_QueueFamilyIndices* indices);

@@ -27,8 +27,15 @@ void get_attribute_descriptions_vertex(VkVertexInputAttributeDescription* attrib
         .format = VK_FORMAT_R32G32B32_SFLOAT, // vec3 (color)
         .offset = offsetof(t_Vertex, color)
     };
+
+    attribute_descriptions[2] = (VkVertexInputAttributeDescription){
+        .binding = 0,
+        .location = 2,
+        .format = VK_FORMAT_R32G32_SFLOAT, // vec2 uv coord
+        .offset = offsetof(t_Vertex, tex_coord)
+    };
 }
-static uint32_t find_memory_type(const uint32_t type_filter, const VkMemoryPropertyFlags properties, const VkPhysicalDevice physical_device) {
+uint32_t find_memory_type(const uint32_t type_filter, const VkMemoryPropertyFlags properties, const VkPhysicalDevice physical_device) {
     VkPhysicalDeviceMemoryProperties mem_properties;
     vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
 
@@ -41,25 +48,7 @@ static uint32_t find_memory_type(const uint32_t type_filter, const VkMemoryPrope
     return -1;
 }
 static void buffer_copy(const VkCommandPool *command_pool, const t_Device *device, const VkDeviceSize size, const VkBuffer *src_buffer, const VkBuffer *dst_buffer) {
-    //create command buffer
-    const VkCommandBufferAllocateInfo alloc_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandPool = *command_pool,
-        .commandBufferCount = 1
-    };
-
-    VkCommandBuffer command_buffer;
-    vkAllocateCommandBuffers(device->instance, &alloc_info, &command_buffer);
-
-    //record copy to command buffer
-
-    const VkCommandBufferBeginInfo begin_info = {
-        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    };
-
-    vkBeginCommandBuffer(command_buffer, &begin_info);
+    VkCommandBuffer command_buffer = begin_single_time_commands(command_pool, &device->instance);
 
     const VkBufferCopy copy_region = {
         .srcOffset = 0, // Optional
@@ -69,22 +58,7 @@ static void buffer_copy(const VkCommandPool *command_pool, const t_Device *devic
 
     vkCmdCopyBuffer(command_buffer, *src_buffer, *dst_buffer, 1, &copy_region);
 
-    vkEndCommandBuffer(command_buffer);
-
-    //now execute command buffer
-
-    const VkSubmitInfo submitInfo = {
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &command_buffer
-    };
-
-    vkQueueSubmit(device->graphics_queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(device->graphics_queue);
-
-    //cleanup command buffer
-
-    vkFreeCommandBuffers(device->instance, *command_pool, 1, &command_buffer);
+    end_single_time_commands(command_pool, &command_buffer, device);
 
 }
 void buffer_create(const VkDeviceSize size, const VkBufferUsageFlags usage, const VkMemoryPropertyFlags properties, VkBuffer *buffer,
@@ -137,10 +111,10 @@ t_VertexBuffer buffer_vertex_init(const t_Device *device, const VkCommandPool *c
     vertex_buffer.size = 4;
     vertex_buffer.vertices = (t_Vertex*)malloc(sizeof(t_Vertex) * vertex_buffer.size);
     const t_Vertex predefined_vertices[] = {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
     };
     for (size_t i = 0; i < vertex_buffer.size; ++i) {
         vertex_buffer.vertices[i] = predefined_vertices[i];

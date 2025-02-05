@@ -147,11 +147,17 @@ static void app_vulkan_init(t_Application *app) {
     //*****SWAP CHAIN CREATION*****
 
     app->renderer = renderer_init(&app->indices, &app->device.instance);
+    //create texture image
+
     app->vertex_buffer = buffer_vertex_init(&app->device, &app->renderer.command_pool);
     app->index_buffer = buffer_index_init(&app->device, &app->renderer.command_pool);
     app->ubo_data = buffer_ubo_init(&app->device);
 
-    descriptor_populate(&app->device.instance, &app->descriptor, &app->ubo_data);
+    app->texture = texture_init("../resources/textures/texture.jpg", &app->device, &app->renderer.command_pool);
+
+    descriptor_populate(&app->device.instance, &app->descriptor, &app->ubo_data, &app->texture);
+
+
 }
 
 static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {
@@ -186,6 +192,7 @@ void app_run(t_Application *app) {
 }
 void app_end(const t_Application *app) {
     swap_chain_cleanup(&app->swap_chain, &app->device.instance);
+    texture_cleanup(&app->device.instance, &app->texture);
 
     buffer_ubo_cleanup(&app->device.instance, &app->ubo_data);
     descriptor_cleanup(&app->device.instance, &app->descriptor);

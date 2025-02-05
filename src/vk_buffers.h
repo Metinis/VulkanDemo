@@ -33,6 +33,7 @@ typedef struct UniformBufferObject {
 }t_UniformBufferObject;
 VkVertexInputBindingDescription get_binding_description_vertex();
 void get_attribute_descriptions_vertex(VkVertexInputAttributeDescription* attribute_descriptions);
+uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties, VkPhysicalDevice physical_device);
 void buffer_create(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer *buffer,
     VkDeviceMemory *buffer_memory, const t_Device *device);
 t_VertexBuffer buffer_vertex_init(const t_Device *device, const VkCommandPool *command_pool);

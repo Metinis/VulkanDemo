@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <cglm/mat4.h>
 #include <vulkan/vulkan_core.h>
+
+#include "texture.h"
 #include "vk_swap_chain.h"
 #include "utils.h"
 #include "vk_device.h"
@@ -38,6 +40,7 @@ typedef struct Application {
     t_VertexBuffer vertex_buffer;
     t_IndexBuffer index_buffer;
     t_UniformBufferData ubo_data;
+    t_Texture texture;
 }t_Application;
 
 t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device);

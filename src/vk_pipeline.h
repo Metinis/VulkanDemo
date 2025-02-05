@@ -1,7 +1,7 @@
 #pragma once
 #include <vulkan/vulkan_core.h>
 
-#define ATTRIBUTE_COUNT 2
+#define ATTRIBUTE_COUNT 3
 
 typedef struct Pipeline {
     VkRenderPass render_pass;

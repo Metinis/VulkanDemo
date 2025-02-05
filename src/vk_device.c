@@ -39,7 +39,10 @@ static uint8_t device_check_suitable(const t_Device *device, const VkPhysicalDev
 
     swap_chain_free_support(&swap_details);
 
-    return is_complete(&indices) && device_check_extension_support(device, physical_device) && swap_chain_adequate;
+    VkPhysicalDeviceFeatures supported_features;
+    vkGetPhysicalDeviceFeatures(*physical_device, &supported_features);
+
+    return is_complete(&indices) && device_check_extension_support(device, physical_device) && swap_chain_adequate && supported_features.samplerAnisotropy;
 }
 static void device_pick_physical_device(t_Device *device, const VkInstance *instance) {
     device->physical_device = VK_NULL_HANDLE;
@@ -92,7 +95,9 @@ static void device_create_logical(t_Device *device, const t_QueueFamilyIndices *
     }
 
     // Specify device features
-    VkPhysicalDeviceFeatures device_features = {};
+    VkPhysicalDeviceFeatures device_features = {
+        .samplerAnisotropy = VK_TRUE
+    };
 
     VkDeviceCreateInfo create_info = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,

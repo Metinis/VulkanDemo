@@ -5,7 +5,41 @@
 
 
 
+VkCommandBuffer begin_single_time_commands(const VkCommandPool *command_pool, const VkDevice *device) {
+    const VkCommandBufferAllocateInfo alloc_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandPool = *command_pool,
+        .commandBufferCount = 1
+    };
 
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(*device, &alloc_info, &command_buffer);
+
+    const VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    return command_buffer;
+}
+
+void end_single_time_commands(const VkCommandPool *command_pool, VkCommandBuffer *command_buffer, const t_Device *device) {
+    vkEndCommandBuffer(*command_buffer);
+
+    const VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = command_buffer
+    };
+
+    vkQueueSubmit(device->graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(device->graphics_queue);
+
+    vkFreeCommandBuffers(device->instance, *command_pool, 1, command_buffer);
+}
 static void renderer_create_command_pool(t_Renderer *renderer, const VkDevice *device, const t_QueueFamilyIndices *indices) {
     const VkCommandPoolCreateInfo pool_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,

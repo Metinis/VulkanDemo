@@ -173,29 +173,28 @@ void swap_chain_cleanup(const t_SwapChain *swap_chain, const VkDevice *device) {
     free(swap_chain->framebuffers);
     free(swap_chain->images);
 }
-void swap_chain_create_image_views(t_SwapChain *swap_chain, const VkDevice *device) {
-    swap_chain->image_views = (VkImageView*)malloc(swap_chain->image_count * sizeof(VkImageView));
-    for(size_t i = 0; i < swap_chain->image_count; i++) {
-        VkImageViewCreateInfo create_info = {
+VkImageView create_image_view(const VkImage image, const VkFormat format, const VkDevice *device) {
+    const VkImageViewCreateInfo view_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .image = swap_chain->images[i],
+        .image = image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
-        .format = swap_chain->image_format,
-        .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-        .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+        .format = format,
         .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
         .subresourceRange.baseMipLevel = 0,
         .subresourceRange.levelCount = 1,
         .subresourceRange.baseArrayLayer = 0,
         .subresourceRange.layerCount = 1
-            };
-
-        if (vkCreateImageView(*device, &create_info, NULL, &swap_chain->image_views[i]) != VK_SUCCESS) {
-            printf("\nFailed to create image views!");
-            exit(-1);
-        }
+    };
+    VkImageView image_view;
+    if (vkCreateImageView(*device, &view_info, NULL, &image_view) != VK_SUCCESS) {
+        printf("Failed to create image view! \n");
+    }
+    return image_view;
+}
+void swap_chain_create_image_views(t_SwapChain *swap_chain, const VkDevice *device) {
+    swap_chain->image_views = (VkImageView*)malloc(swap_chain->image_count * sizeof(VkImageView));
+    for(size_t i = 0; i < swap_chain->image_count; i++) {
+        swap_chain->image_views[i] = create_image_view(swap_chain->images[i], swap_chain->image_format, device);
     }
 }
 
