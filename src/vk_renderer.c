@@ -161,7 +161,7 @@ t_Renderer renderer_init(const t_QueueFamilyIndices *indices, const VkDevice *de
     renderer_create_sync_objects(&renderer, device);
     return renderer;
 }
-void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, const t_SwapChain *swap_chain, GLFWwindow *window,
+void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, t_SwapChain *swap_chain, GLFWwindow *window,
     const t_QueueFamilyIndices *indices, const t_Pipeline *pipeline, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer,
     const t_UniformBufferData *ubo_data, const t_DescriptorData *desc_data) {
     vkWaitForFences(device->instance, 1, &renderer->in_flight_fences[renderer->current_frame], VK_TRUE, UINT64_MAX);
@@ -171,7 +171,7 @@ void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, const t_S
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || renderer->framebuffer_resized) {
         renderer->framebuffer_resized = 0;
-        swap_chain_recreate(swap_chain, &device->surface, &device->instance, &device->physical_device, window, indices);
+        swap_chain_recreate(swap_chain, &device->surface, &device->instance, &device->physical_device, window, indices, &pipeline->render_pass);
         return;
     } else if (result != VK_SUCCESS) {
         printf("Failed to acquire swap chain! \n");
@@ -221,7 +221,7 @@ void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, const t_S
     result = vkQueuePresentKHR(device->present_queue, &present_info);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        swap_chain_recreate(swap_chain, &device->surface, &device->instance, &device->physical_device, window, indices);
+        swap_chain_recreate(swap_chain, &device->surface, &device->instance, &device->physical_device, window, indices, &pipeline->render_pass);
     } else if (result != VK_SUCCESS) {
         printf("Failed to present swap chain image!\n");
     }

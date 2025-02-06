@@ -163,6 +163,7 @@ static void app_vulkan_init(t_Application *app) {
 static void framebuffer_resize_callback(GLFWwindow *window, int width, int height) {
     t_Application *app = (t_Application *)glfwGetWindowUserPointer(window);
 
+    //swap_chain_recreate(&app->swap_chain, &app->device.surface, &app->device.instance, &app->device.physical_device, app->window, &app->indices);
     app->renderer.framebuffer_resized = 1;
 
 }
@@ -184,9 +185,13 @@ void app_init(t_Application *app) {
 void app_run(t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
-        //if(!app->renderer.framebuffer_resized)
-            renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
-            &app->pipeline, &app->vertex_buffer, &app->index_buffer, &app->ubo_data, &app->descriptor);
+        if(app->renderer.framebuffer_resized) {
+            swap_chain_recreate(&app->swap_chain, &app->device.surface, &app->device.instance, &app->device.physical_device, app->window,
+                &app->indices, &app->pipeline.render_pass);
+            app->renderer.framebuffer_resized = 0;
+        }
+        renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
+        &app->pipeline, &app->vertex_buffer, &app->index_buffer, &app->ubo_data, &app->descriptor);
     }
     vkDeviceWaitIdle(app->device.instance);
 }

@@ -220,8 +220,8 @@ void swap_chain_create_frame_buffers(t_SwapChain *swap_chain, const VkDevice *de
         }
     }
 }
-void swap_chain_recreate(const t_SwapChain *swap_chain, const VkSurfaceKHR *surface, const VkDevice *device, const VkPhysicalDevice *physical_device,
-    GLFWwindow *window, const t_QueueFamilyIndices *indices) {
+void swap_chain_recreate(t_SwapChain *swap_chain, const VkSurfaceKHR *surface, const VkDevice *device, const VkPhysicalDevice *physical_device,
+    GLFWwindow *window, const t_QueueFamilyIndices *indices, const VkRenderPass *render_pass) {
     //pause until window is not minimised
     int width = 0, height = 0;
     glfwGetFramebufferSize(window, &width, &height);
@@ -233,8 +233,8 @@ void swap_chain_recreate(const t_SwapChain *swap_chain, const VkSurfaceKHR *surf
 
     swap_chain_cleanup(swap_chain, device);
 
-    swap_chain_create(surface, device, physical_device, window, indices);
-    //todo check this
-    //app_create_image_views(app);
-    //app_create_frame_buffers(app);
+    *swap_chain = swap_chain_create(surface, device, physical_device, window, indices);
+
+    swap_chain_create_image_views(swap_chain, device);
+    swap_chain_create_frame_buffers(swap_chain, device, render_pass);
 }
