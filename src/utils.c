@@ -28,4 +28,20 @@ unsigned char* read_file(const char* filename, size_t* file_size) {
 
     return buffer;
 }
+VkFormat find_supported_format(const VkFormat* candidates, const size_t candidate_size, const VkImageTiling tiling, const VkFormatFeatureFlags features,
+                                      const VkPhysicalDevice *physical_device) {
+
+    for(size_t i = 0; i < candidate_size; i++) {
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(*physical_device, candidates[i], &properties);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features) {
+            return candidates[i];
+        } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features) {
+            return candidates[i];
+        }
+    }
+    printf("Failed to find supported format! \n");
+    return -1;
+}
 

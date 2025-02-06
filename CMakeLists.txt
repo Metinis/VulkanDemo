@@ -40,7 +40,9 @@ add_executable(VulkanDemo src/main.c
         src/vk_descriptor.h
         include/stb/stb_image.h
         src/texture.c
-        src/texture.h)
+        src/texture.h
+        src/vk_depth.c
+        src/vk_depth.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)

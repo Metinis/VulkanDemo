@@ -140,10 +140,11 @@ static void app_vulkan_init(t_Application *app) {
     //descriptor_create_set_layout(&app->device.instance, &app->descriptor_set_layout);
     app->descriptor = descriptor_init(&app->device.instance);
     //create pipeline
-    app->pipeline = pipeline_init(&app->device.instance, &app->swap_chain.image_format, &app->swap_chain.extent, &app->descriptor.set_layout);
+    app->pipeline = pipeline_init(&app->device.instance, &app->device.physical_device, &app->swap_chain.image_format, &app->swap_chain.extent, &app->descriptor.set_layout);
 
+    app->depth_data = depth_init(&app->device, app->swap_chain.extent);
 
-    swap_chain_create_frame_buffers(&app->swap_chain, &app->device.instance, &app->pipeline.render_pass);
+    swap_chain_create_frame_buffers(&app->swap_chain, &app->device.instance, &app->pipeline.render_pass, &app->depth_data.depth_image_view);
     //*****SWAP CHAIN CREATION*****
 
     app->renderer = renderer_init(&app->indices, &app->device.instance);
@@ -186,17 +187,17 @@ void app_run(t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
         if(app->renderer.framebuffer_resized) {
-            swap_chain_recreate(&app->swap_chain, &app->device.surface, &app->device.instance, &app->device.physical_device, app->window,
+            swap_chain_recreate(&app->swap_chain, &app->depth_data, &app->device.surface, &app->device, app->window,
                 &app->indices, &app->pipeline.render_pass);
             app->renderer.framebuffer_resized = 0;
         }
         renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
-        &app->pipeline, &app->vertex_buffer, &app->index_buffer, &app->ubo_data, &app->descriptor);
+        &app->pipeline, &app->vertex_buffer, &app->index_buffer, &app->ubo_data, &app->descriptor, &app->depth_data);
     }
     vkDeviceWaitIdle(app->device.instance);
 }
 void app_end(const t_Application *app) {
-    swap_chain_cleanup(&app->swap_chain, &app->device.instance);
+    swap_chain_cleanup(&app->swap_chain, &app->depth_data, &app->device.instance);
     texture_cleanup(&app->device.instance, &app->texture);
 
     buffer_ubo_cleanup(&app->device.instance, &app->ubo_data);

@@ -159,7 +159,8 @@ t_SwapChain swap_chain_create(const VkSurfaceKHR *surface, const VkDevice *devic
     return swap_chain;
 
 }
-void swap_chain_cleanup(const t_SwapChain *swap_chain, const VkDevice *device) {
+void swap_chain_cleanup(const t_SwapChain *swap_chain, const t_DepthData *depth_data, const VkDevice *device) {
+    depth_cleanup(depth_data, device);
     for (size_t i = 0; i < swap_chain->image_count; i++) {
         vkDestroyFramebuffer(*device, swap_chain->framebuffers[i], NULL);
     }
@@ -173,13 +174,13 @@ void swap_chain_cleanup(const t_SwapChain *swap_chain, const VkDevice *device) {
     free(swap_chain->framebuffers);
     free(swap_chain->images);
 }
-VkImageView create_image_view(const VkImage image, const VkFormat format, const VkDevice *device) {
+VkImageView create_image_view(const VkImage image, const VkFormat format, const VkImageAspectFlags aspect_flags, const VkDevice *device) {
     const VkImageViewCreateInfo view_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .image = image,
         .viewType = VK_IMAGE_VIEW_TYPE_2D,
         .format = format,
-        .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .subresourceRange.aspectMask = aspect_flags,
         .subresourceRange.baseMipLevel = 0,
         .subresourceRange.levelCount = 1,
         .subresourceRange.baseArrayLayer = 0,
@@ -194,21 +195,24 @@ VkImageView create_image_view(const VkImage image, const VkFormat format, const 
 void swap_chain_create_image_views(t_SwapChain *swap_chain, const VkDevice *device) {
     swap_chain->image_views = (VkImageView*)malloc(swap_chain->image_count * sizeof(VkImageView));
     for(size_t i = 0; i < swap_chain->image_count; i++) {
-        swap_chain->image_views[i] = create_image_view(swap_chain->images[i], swap_chain->image_format, device);
+        swap_chain->image_views[i] = create_image_view(swap_chain->images[i], swap_chain->image_format, VK_IMAGE_ASPECT_COLOR_BIT, device);
     }
 }
 
-void swap_chain_create_frame_buffers(t_SwapChain *swap_chain, const VkDevice *device, const VkRenderPass *render_pass) {
+void swap_chain_create_frame_buffers(t_SwapChain *swap_chain, const VkDevice *device, const VkRenderPass *render_pass,
+    const VkImageView *depth_image_view) {
+
     swap_chain->framebuffers = (VkFramebuffer*)malloc(swap_chain->image_count * sizeof(VkFramebuffer));
     for (size_t i = 0; i < swap_chain->image_count; i++) {
-        VkImageView attachments[] = {
-            swap_chain->image_views[i]
+        VkImageView attachments[2] = {
+            swap_chain->image_views[i],
+            *depth_image_view
         };
 
         VkFramebufferCreateInfo framebuffer_info = {
             .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             .renderPass = *render_pass,
-            .attachmentCount = 1,
+            .attachmentCount = 2,
             .pAttachments = attachments,
             .width = swap_chain->extent.width,
             .height = swap_chain->extent.height,
@@ -220,7 +224,7 @@ void swap_chain_create_frame_buffers(t_SwapChain *swap_chain, const VkDevice *de
         }
     }
 }
-void swap_chain_recreate(t_SwapChain *swap_chain, const VkSurfaceKHR *surface, const VkDevice *device, const VkPhysicalDevice *physical_device,
+void swap_chain_recreate(t_SwapChain *swap_chain, t_DepthData *depth_data, const VkSurfaceKHR *surface, const t_Device *device,
     GLFWwindow *window, const t_QueueFamilyIndices *indices, const VkRenderPass *render_pass) {
     //pause until window is not minimised
     int width = 0, height = 0;
@@ -229,12 +233,15 @@ void swap_chain_recreate(t_SwapChain *swap_chain, const VkSurfaceKHR *surface, c
         glfwGetFramebufferSize(window, &width, &height);
         glfwWaitEvents();
     }
-    vkDeviceWaitIdle(*device);
+    vkDeviceWaitIdle(device->instance);
 
-    swap_chain_cleanup(swap_chain, device);
+    swap_chain_cleanup(swap_chain, depth_data, &device->instance);
 
-    *swap_chain = swap_chain_create(surface, device, physical_device, window, indices);
+    *swap_chain = swap_chain_create(surface, &device->instance, &device->physical_device, window, indices);
 
-    swap_chain_create_image_views(swap_chain, device);
-    swap_chain_create_frame_buffers(swap_chain, device, render_pass);
+    swap_chain_create_image_views(swap_chain, &device->instance);
+    *depth_data = depth_init(device, swap_chain->extent);
+    swap_chain_create_frame_buffers(swap_chain, &device->instance, render_pass, &depth_data->depth_image_view);
+
+
 }

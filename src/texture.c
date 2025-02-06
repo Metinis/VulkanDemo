@@ -4,8 +4,9 @@
 #include <string.h>
 
 #include "vk_buffers.h"
+#include "vk_depth.h"
 #include "vk_renderer.h"
-static void transition_image_layout(VkImage image, VkFormat format, const VkImageLayout old_layout, const VkImageLayout new_layout,
+void transition_image_layout(VkImage image, VkFormat format, const VkImageLayout old_layout, const VkImageLayout new_layout,
     const VkCommandPool *command_pool, const t_Device *device) {
     VkCommandBuffer command_buffer = begin_single_time_commands(command_pool, &device->instance);
 
@@ -27,6 +28,16 @@ static void transition_image_layout(VkImage image, VkFormat format, const VkImag
     VkPipelineStageFlags source_stage;
     VkPipelineStageFlags destination_stage;
 
+    if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        if (has_stencil_component(format)) {
+            barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        }
+    } else {
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
     if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         barrier.srcAccessMask = 0;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -39,9 +50,16 @@ static void transition_image_layout(VkImage image, VkFormat format, const VkImag
 
         source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destination_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     } else {
         printf("unsupported layout transition!\n");
     }
+
     vkCmdPipelineBarrier(
         command_buffer,
         0 /* TODO */, 0 /* TODO */,
@@ -53,11 +71,11 @@ static void transition_image_layout(VkImage image, VkFormat format, const VkImag
 
     end_single_time_commands(command_pool, &command_buffer, device);
 }
-static void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height,
+static void copy_buffer_to_image(const VkBuffer buffer, const VkImage image, const uint32_t width, const uint32_t height,
     const VkCommandPool *command_pool, const t_Device *device) {
     VkCommandBuffer command_buffer = begin_single_time_commands(command_pool, &device->instance);
 
-    VkBufferImageCopy region = {
+    const VkBufferImageCopy region = {
         .bufferOffset = 0,
         .bufferRowLength = 0,
         .bufferImageHeight = 0,
@@ -86,7 +104,8 @@ static void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width,
     end_single_time_commands(command_pool, &command_buffer, device);
 }
 
-static void create_image(const t_Device *device, t_Texture *texture, const int tex_width, const int tex_height) {
+void create_image(const t_Device *device, VkImage *image, VkDeviceMemory *image_memory, const VkFormat format, const VkImageTiling tiling,
+    const VkImageUsageFlags usage, const VkMemoryPropertyFlags properties, const int tex_width, const int tex_height) {
     const VkImageCreateInfo image_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -95,33 +114,35 @@ static void create_image(const t_Device *device, t_Texture *texture, const int t
         .extent.depth = 1,
         .mipLevels = 1,
         .arrayLayers = 1,
-        .format = VK_FORMAT_R8G8B8A8_SRGB,
-        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .format = format,//VK_FORMAT_R8G8B8A8_SRGB,
+        .tiling = tiling,//VK_IMAGE_TILING_OPTIMAL,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .usage = usage,//VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .flags = 0
     };
 
-    if(vkCreateImage(device->instance, &image_info, NULL, &texture->texture_image) != VK_SUCCESS) {
+    if(vkCreateImage(device->instance, &image_info, NULL, image) != VK_SUCCESS) {
         printf("Failed to create a texture image! \n");
     }
 
     VkMemoryRequirements mem_requirements;
-    vkGetImageMemoryRequirements(device->instance, texture->texture_image, &mem_requirements);
+    vkGetImageMemoryRequirements(device->instance, *image, &mem_requirements);
 
     const VkMemoryAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .allocationSize = mem_requirements.size,
-        .memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device->physical_device)
+        .memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, properties, device->physical_device)
+
+        //.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device->physical_device)
     };
 
-    if (vkAllocateMemory(device->instance, &alloc_info, NULL, &texture->texture_image_memory) != VK_SUCCESS) {
+    if (vkAllocateMemory(device->instance, &alloc_info, NULL, image_memory) != VK_SUCCESS) {
         printf("Failed to allocate image memory! \n");
     }
 
-    vkBindImageMemory(device->instance, texture->texture_image, texture->texture_image_memory, 0);
+    vkBindImageMemory(device->instance, *image, *image_memory, 0);
 }
 static void create_texture_image(const char* filepath, t_Texture *texture, const t_Device *device, const VkCommandPool *command_pool) {
     int tex_width, tex_height, tex_channels;
@@ -140,7 +161,8 @@ static void create_texture_image(const char* filepath, t_Texture *texture, const
 
     stbi_image_free(pixels);
 
-    create_image(device, texture, tex_width, tex_height);
+    create_image(device, &texture->texture_image, &texture->texture_image_memory, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, tex_width, tex_height);
 
     transition_image_layout(texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_pool, device);
 
@@ -153,7 +175,7 @@ static void create_texture_image(const char* filepath, t_Texture *texture, const
 
 }
 static void texture_create_image_view(t_Texture *texture, const t_Device *device) {
-    texture->image_view = create_image_view(texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, &device->instance);
+    texture->image_view = create_image_view(texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, &device->instance);
 }
 static void texture_create_sampler(t_Texture *texture, const t_Device *device) {
     //retrieve properties for maxAnistropy

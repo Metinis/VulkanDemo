@@ -17,7 +17,7 @@ void get_attribute_descriptions_vertex(VkVertexInputAttributeDescription* attrib
     attribute_descriptions[0] = (VkVertexInputAttributeDescription){
         .binding = 0,
         .location = 0,
-        .format = VK_FORMAT_R32G32_SFLOAT, // vec2 (pos)
+        .format = VK_FORMAT_R32G32B32_SFLOAT, // vec3 (pos)
         .offset = offsetof(t_Vertex, pos)
     };
 
@@ -108,13 +108,18 @@ static void buffer_vertex_create(t_VertexBuffer *vertex_buffer, const t_Device *
 }
 t_VertexBuffer buffer_vertex_init(const t_Device *device, const VkCommandPool *command_pool) {
     t_VertexBuffer vertex_buffer;
-    vertex_buffer.size = 4;
+    vertex_buffer.size = 8;
     vertex_buffer.vertices = (t_Vertex*)malloc(sizeof(t_Vertex) * vertex_buffer.size);
     const t_Vertex predefined_vertices[] = {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
     };
     for (size_t i = 0; i < vertex_buffer.size; ++i) {
         vertex_buffer.vertices[i] = predefined_vertices[i];
@@ -152,9 +157,12 @@ static void buffer_index_create(t_IndexBuffer *index_buffer, const t_Device *dev
 }
 t_IndexBuffer buffer_index_init(const t_Device *device, const VkCommandPool *command_pool) {
     t_IndexBuffer index_buffer;
-    index_buffer.size = 6;
+    index_buffer.size = 12;
     index_buffer.indices = (uint16_t*)malloc(sizeof(uint16_t) * index_buffer.size);
-    const uint16_t predefined_indices[] = {0, 1, 2, 2, 3, 0};
+    const uint16_t predefined_indices[] = {
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4
+    };
     for (size_t i = 0; i < index_buffer.size; ++i) {
         index_buffer.indices[i] = predefined_indices[i];
     }
@@ -208,7 +216,7 @@ void buffer_ubo_update(const uint32_t current_image, const VkExtent2D *extent_2d
                     (current_time.tv_nsec - start_time.tv_nsec) / 1e9f;
     t_UniformBufferObject ubo = {};
     glm_mat4_identity(ubo.model);
-    glm_vec3_rotate(ubo.model, glm_rad(90.0f) * elapsed, (vec3){0.0f, 0.0f, 1.0f});
+    //glm_vec3_rotate(ubo.model, glm_rad(90.0f) * elapsed, (vec3){0.0f, 1.0f, 0.0f});
 
     glm_lookat((vec3){2.0f, 2.0f, 2.0f},
                (vec3){0.0f, 0.0f, 0.0f},

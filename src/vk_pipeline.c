@@ -4,6 +4,7 @@
 
 #include "utils.h"
 #include "vk_buffers.h"
+#include "vk_depth.h"
 
 static VkShaderModule pipeline_create_shader_module(const VkDevice *device, const unsigned char* code, const size_t file_size) {
     const VkShaderModuleCreateInfo create_info = {
@@ -119,6 +120,15 @@ static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *devic
         .alphaToOneEnable = VK_FALSE
     };
 
+    VkPipelineDepthStencilStateCreateInfo depth_stencil = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable = VK_FALSE
+    };
+
     VkPipelineColorBlendAttachmentState color_blend_attachment = {
         .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
         .blendEnable = VK_TRUE,
@@ -163,7 +173,7 @@ static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *devic
         .pViewportState = &viewport_state,
         .pRasterizationState = &rasterizer,
         .pMultisampleState = &multi_sampling,
-        .pDepthStencilState = NULL, // Optional
+        .pDepthStencilState = &depth_stencil,
         .pColorBlendState = &color_blending,
         .pDynamicState = &dynamic_state,
         .layout = pipeline->pipeline_layout,
@@ -179,7 +189,25 @@ static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *devic
     vkDestroyShaderModule(*device, frag_shader_module, NULL);
 
 }
-static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *device, const VkFormat *image_format) {
+static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *device,
+    const VkPhysicalDevice *physical_device, const VkFormat *image_format) {
+
+    VkAttachmentDescription depth_attachment = {
+        .format = depth_find_format(physical_device),
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    };
+
+    VkAttachmentReference depth_attachment_ref = {
+        .attachment = 1,
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    };
+
     VkAttachmentDescription color_attachment = {
         .format = *image_format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -199,22 +227,25 @@ static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *de
     VkSubpassDescription subpass = {
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
-        .pColorAttachments = &color_attachment_ref
+        .pColorAttachments = &color_attachment_ref,
+        .pDepthStencilAttachment = &depth_attachment_ref
+
     };
 
     VkSubpassDependency dependency = {
         .srcSubpass = VK_SUBPASS_EXTERNAL,
         .dstSubpass = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
         .srcAccessMask = 0,
-        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
     };
+    VkAttachmentDescription attachment_description[2] = {color_attachment, depth_attachment};
 
     const VkRenderPassCreateInfo render_pass_info = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = 1,
-        .pAttachments = &color_attachment,
+        .attachmentCount = 2,
+        .pAttachments = attachment_description,
         .subpassCount = 1,
         .pSubpasses = &subpass,
         .dependencyCount = 1,
@@ -226,9 +257,9 @@ static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *de
         printf("Failed to create render pass! \n");
     }
 }
-t_Pipeline pipeline_init(const VkDevice *device, const VkFormat *image_format, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout) {
+t_Pipeline pipeline_init(const VkDevice *device, const VkPhysicalDevice *physical_device, const VkFormat *image_format, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout) {
     t_Pipeline pipeline;
-    pipeline_create_render_pass(&pipeline, device, image_format);
+    pipeline_create_render_pass(&pipeline, device, physical_device, image_format);
     pipeline_create_graphics(&pipeline, device, extent, descriptor_set_layout);
     return pipeline;
 }

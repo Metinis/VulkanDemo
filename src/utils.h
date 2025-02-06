@@ -4,6 +4,7 @@
 #include <cglm/vec3.h>
 #include <vulkan/vulkan_core.h>
 
+
 typedef struct {
     uint32_t value;
     uint8_t has_value;
@@ -28,7 +29,7 @@ typedef struct SwapChainSupportDetails {
     uint32_t present_size;
 } t_SwapChainSupportDetails;
 typedef struct Vertex {
-    vec2 pos;
+    vec3 pos;
     vec3 color;
     vec2 tex_coord;
 }t_Vertex;
@@ -36,3 +37,6 @@ typedef struct Vertex {
 uint8_t is_complete(const t_QueueFamilyIndices* indices);
 
 unsigned char* read_file(const char* filename, size_t* file_size);
+
+VkFormat find_supported_format(const VkFormat* candidates, size_t candidate_size, VkImageTiling tiling, VkFormatFeatureFlags features,
+                                      const VkPhysicalDevice *physical_device);
