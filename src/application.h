@@ -24,6 +24,9 @@
     #define ENABLE_VALIDATION_LAYERS 1
 #endif
 
+#define TEXTURE_PATH "../resources/textures/viking_room.png"
+#define MODEL_PATH "../resources/models/viking_room.obj"
+
 typedef struct GLFWwindow GLFWwindow;
 
 

@@ -15,7 +15,7 @@ typedef struct VertexBuffer {
 }t_VertexBuffer;
 typedef struct IndexBuffer {
     uint32_t size;
-    uint16_t *indices;
+    uint32_t *indices;
     t_Buffer buffer;
 }t_IndexBuffer;
 typedef struct UniformBufferData {
@@ -36,8 +36,10 @@ void get_attribute_descriptions_vertex(VkVertexInputAttributeDescription* attrib
 uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties, VkPhysicalDevice physical_device);
 void buffer_create(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer *buffer,
     VkDeviceMemory *buffer_memory, const t_Device *device);
+void buffer_vertex_create(t_VertexBuffer *vertex_buffer, const t_Device *device, const VkCommandPool *command_pool);
 t_VertexBuffer buffer_vertex_init(const t_Device *device, const VkCommandPool *command_pool);
 void buffer_vertex_cleanup(const t_VertexBuffer *vertex_buffer, const VkDevice *device);
+void buffer_index_create(t_IndexBuffer *index_buffer, const t_Device *device, const VkCommandPool *command_pool);
 t_IndexBuffer buffer_index_init(const t_Device *device, const VkCommandPool *command_pool);
 void buffer_index_cleanup(const t_IndexBuffer *index_buffer, const VkDevice *device);
 t_UniformBufferData buffer_ubo_init(const t_Device *device);

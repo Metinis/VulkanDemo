@@ -85,7 +85,7 @@ void buffer_create(const VkDeviceSize size, const VkBufferUsageFlags usage, cons
     }
     vkBindBufferMemory(device->instance, *buffer, *buffer_memory, 0);
 }
-static void buffer_vertex_create(t_VertexBuffer *vertex_buffer, const t_Device *device, const VkCommandPool *command_pool) {
+void buffer_vertex_create(t_VertexBuffer *vertex_buffer, const t_Device *device, const VkCommandPool *command_pool) {
     const VkDeviceSize buffer_size = sizeof(vertex_buffer->vertices[0]) * vertex_buffer->size;
 
     VkBuffer staging_buffer;
@@ -134,7 +134,7 @@ void buffer_vertex_cleanup(const t_VertexBuffer *vertex_buffer, const VkDevice *
 
     free(vertex_buffer->vertices);
 }
-static void buffer_index_create(t_IndexBuffer *index_buffer, const t_Device *device, const VkCommandPool *command_pool) {
+void buffer_index_create(t_IndexBuffer *index_buffer, const t_Device *device, const VkCommandPool *command_pool) {
     const VkDeviceSize buffer_size = sizeof(index_buffer->indices[0]) * index_buffer->size;
 
     VkBuffer staging_buffer;
@@ -215,8 +215,11 @@ void buffer_ubo_update(const uint32_t current_image, const VkExtent2D *extent_2d
     const float elapsed = (current_time.tv_sec - start_time.tv_sec) +
                     (current_time.tv_nsec - start_time.tv_nsec) / 1e9f;
     t_UniformBufferObject ubo = {};
-    glm_mat4_identity(ubo.model);
-    //glm_vec3_rotate(ubo.model, glm_rad(90.0f) * elapsed, (vec3){0.0f, 1.0f, 0.0f});
+    glm_mat4_identity(ubo.model); // Start with identity matrix
+
+    float angle = glm_rad(90.0f) * elapsed; // Rotate over time
+    glm_rotate(ubo.model, angle, (vec3){0.0f, 0.0f, 1.0f}); // Rotate around Y-axis
+
 
     glm_lookat((vec3){2.0f, 2.0f, 2.0f},
                (vec3){0.0f, 0.0f, 0.0f},

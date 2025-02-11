@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "model.h"
 #include "vk_debug.h"
 #include "vk_renderer.h"
 
@@ -124,6 +126,8 @@ t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const 
 
 
 static void app_vulkan_init(t_Application *app) {
+
+
     debug_print_available_extensions();
     app_create_vulkan_inst(app);
     debug_setup_messenger(ENABLE_VALIDATION_LAYERS, &app->vk_instance, &app->debug_messenger);
@@ -150,13 +154,22 @@ static void app_vulkan_init(t_Application *app) {
     app->renderer = renderer_init(&app->indices, &app->device.instance);
     //create texture image
 
-    app->vertex_buffer = buffer_vertex_init(&app->device, &app->renderer.command_pool);
-    app->index_buffer = buffer_index_init(&app->device, &app->renderer.command_pool);
+    //t_VertexBuffer vertex_buffer;
+    //app->vertex_buffer = vertex_buffer;ß
+    //t_IndexBuffer index_buffer;
+    //app->index_buffer = index_buffer;
+    load_model(MODEL_PATH, &app->vertex_buffer.vertices, &app->vertex_buffer.size, &app->index_buffer.indices, &app->index_buffer.size);
+
+    //app->vertex_buffer = buffer_vertex_init(&app->device, &app->renderer.command_pool);
+    buffer_vertex_create(&app->vertex_buffer, &app->device, &app->renderer.command_pool);
+    //app->index_buffer = buffer_index_init(&app->device, &app->renderer.command_pool);
+    buffer_index_create(&app->index_buffer, &app->device, &app->renderer.command_pool);
     app->ubo_data = buffer_ubo_init(&app->device);
 
-    app->texture = texture_init("../resources/textures/texture.jpg", &app->device, &app->renderer.command_pool);
+    app->texture = texture_init(TEXTURE_PATH, &app->device, &app->renderer.command_pool);
 
     descriptor_populate(&app->device.instance, &app->descriptor, &app->ubo_data, &app->texture);
+
 
 
 }

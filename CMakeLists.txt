@@ -14,6 +14,8 @@ include_directories(include/cglm/include)
 
 include_directories(include/stb)
 
+include_directories(include/tinyobj_loader_c)
+
 find_package(Vulkan REQUIRED)
 
 # Add VulkanDemo executable
@@ -42,7 +44,10 @@ add_executable(VulkanDemo src/main.c
         src/texture.c
         src/texture.h
         src/vk_depth.c
-        src/vk_depth.h)
+        src/vk_depth.h
+        include/tinyobj_loader_c/tinyobj_loader_c.h
+        src/model.c
+        src/model.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)

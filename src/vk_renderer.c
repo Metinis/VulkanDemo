@@ -128,7 +128,7 @@ void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, const
     //vkCmdDraw(*command_buffer, 3, 1, 0, 0);
     vkCmdBindVertexBuffers(*command_buffer, 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(*command_buffer, index_buffer->buffer.instance, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(*command_buffer, index_buffer->buffer.instance, 0, VK_INDEX_TYPE_UINT32);
 
     vkCmdBindDescriptorSets(*command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline_layout, 0, 1,
         &desc_data->desc_sets[current_frame], 0, NULL);
