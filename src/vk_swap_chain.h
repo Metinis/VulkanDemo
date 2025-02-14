@@ -25,4 +25,4 @@ void swap_chain_recreate(t_SwapChain *swap_chain, t_DepthData *depth_data, const
     GLFWwindow *window, const t_QueueFamilyIndices *indices, const VkRenderPass *render_pass);
 void swap_chain_create_image_views(t_SwapChain *swap_chain, const VkDevice *device);
 void swap_chain_create_frame_buffers(t_SwapChain *swap_chain, const VkDevice *device, const VkRenderPass *render_pass, const VkImageView *depth_image_view);
-VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags, const VkDevice *device);
+VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags, uint32_t mip_levels, const VkDevice *device);

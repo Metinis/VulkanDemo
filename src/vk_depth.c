@@ -24,9 +24,9 @@ static void depth_create_resources(t_DepthData *depth_data, const t_Device *devi
     const VkFormat depth_format = depth_find_format(&device->physical_device);
 
     create_image(device, &depth_data->depth_image, &depth_data->depth_image_memory, depth_format, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, extent_2d.width, extent_2d.height);
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, extent_2d.width, extent_2d.height);
 
-    depth_data->depth_image_view = create_image_view(depth_data->depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, &device->instance);
+    depth_data->depth_image_view = create_image_view(depth_data->depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT, 1, &device->instance);
 
     //transition_image_layout(depth_data->depth_image, depth_format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     //    command_pool, device);

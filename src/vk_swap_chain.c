@@ -174,7 +174,7 @@ void swap_chain_cleanup(const t_SwapChain *swap_chain, const t_DepthData *depth_
     free(swap_chain->framebuffers);
     free(swap_chain->images);
 }
-VkImageView create_image_view(const VkImage image, const VkFormat format, const VkImageAspectFlags aspect_flags, const VkDevice *device) {
+VkImageView create_image_view(const VkImage image, const VkFormat format, const VkImageAspectFlags aspect_flags, const uint32_t mip_levels, const VkDevice *device) {
     const VkImageViewCreateInfo view_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
         .image = image,
@@ -182,7 +182,7 @@ VkImageView create_image_view(const VkImage image, const VkFormat format, const 
         .format = format,
         .subresourceRange.aspectMask = aspect_flags,
         .subresourceRange.baseMipLevel = 0,
-        .subresourceRange.levelCount = 1,
+        .subresourceRange.levelCount = mip_levels,
         .subresourceRange.baseArrayLayer = 0,
         .subresourceRange.layerCount = 1
     };
@@ -195,7 +195,7 @@ VkImageView create_image_view(const VkImage image, const VkFormat format, const 
 void swap_chain_create_image_views(t_SwapChain *swap_chain, const VkDevice *device) {
     swap_chain->image_views = (VkImageView*)malloc(swap_chain->image_count * sizeof(VkImageView));
     for(size_t i = 0; i < swap_chain->image_count; i++) {
-        swap_chain->image_views[i] = create_image_view(swap_chain->images[i], swap_chain->image_format, VK_IMAGE_ASPECT_COLOR_BIT, device);
+        swap_chain->image_views[i] = create_image_view(swap_chain->images[i], swap_chain->image_format, VK_IMAGE_ASPECT_COLOR_BIT, 1, device);
     }
 }
 
