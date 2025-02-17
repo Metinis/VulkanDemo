@@ -11,6 +11,7 @@ typedef struct Device {
     VkQueue graphics_queue;
     VkSurfaceKHR surface;
     VkQueue present_queue;
+    VkSampleCountFlagBits msaa_samples;
 }t_Device;
 
 t_Device device_init(const VkInstance *instance, GLFWwindow *window, t_QueueFamilyIndices *indices,

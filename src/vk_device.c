@@ -44,6 +44,21 @@ static uint8_t device_check_suitable(const t_Device *device, const VkPhysicalDev
 
     return is_complete(&indices) && device_check_extension_support(device, physical_device) && swap_chain_adequate && supported_features.samplerAnisotropy;
 }
+static VkSampleCountFlagBits get_max_usable_sample_count(VkPhysicalDevice *physical_device) {
+    VkPhysicalDeviceProperties physical_device_properties;
+    vkGetPhysicalDeviceProperties(*physical_device, &physical_device_properties);
+
+    const VkSampleCountFlags counts = physical_device_properties.limits.framebufferColorSampleCounts & physical_device_properties.limits.framebufferDepthSampleCounts;
+    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+    return VK_SAMPLE_COUNT_1_BIT;
+}
+
 static void device_pick_physical_device(t_Device *device, const VkInstance *instance) {
     device->physical_device = VK_NULL_HANDLE;
 
@@ -61,6 +76,7 @@ static void device_pick_physical_device(t_Device *device, const VkInstance *inst
     for(size_t i = 0; i < device_count; i++) {
         if(device_check_suitable(device, &devices[i])) {
             device->physical_device = devices[i];
+            device->msaa_samples = get_max_usable_sample_count(&devices[i]);
             break;
         }
     }
@@ -146,6 +162,7 @@ t_Device device_init(const VkInstance *instance, GLFWwindow *window, t_QueueFami
     const uint8_t has_validation_support, const char** validation_layers, const uint32_t validation_size) {
 
     t_Device device;
+    device.msaa_samples = VK_SAMPLE_COUNT_1_BIT;
     device_ext_init(&device);
     device_create_surface(instance, window, &device.surface);
     device_pick_physical_device(&device, instance);

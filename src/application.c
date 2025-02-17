@@ -144,25 +144,20 @@ static void app_vulkan_init(t_Application *app) {
     //descriptor_create_set_layout(&app->device.instance, &app->descriptor_set_layout);
     app->descriptor = descriptor_init(&app->device.instance);
     //create pipeline
-    app->pipeline = pipeline_init(&app->device.instance, &app->device.physical_device, &app->swap_chain.image_format, &app->swap_chain.extent, &app->descriptor.set_layout);
+    app->pipeline = pipeline_init(&app->device, &app->swap_chain.image_format, &app->swap_chain.extent, &app->descriptor.set_layout);
 
+    app->color_data = color_data_init(&app->swap_chain.image_format, &app->device, app->swap_chain.extent);
     app->depth_data = depth_init(&app->device, app->swap_chain.extent);
 
-    swap_chain_create_frame_buffers(&app->swap_chain, &app->device.instance, &app->pipeline.render_pass, &app->depth_data.depth_image_view);
+    swap_chain_create_frame_buffers(&app->swap_chain, &app->device.instance, &app->pipeline.render_pass, &app->depth_data.depth_image_view,
+        &app->color_data.color_image_view);
     //*****SWAP CHAIN CREATION*****
 
     app->renderer = renderer_init(&app->indices, &app->device.instance);
     //create texture image
-
-    //t_VertexBuffer vertex_buffer;
-    //app->vertex_buffer = vertex_buffer;ß
-    //t_IndexBuffer index_buffer;
-    //app->index_buffer = index_buffer;
     load_model(MODEL_PATH, &app->vertex_buffer.vertices, &app->vertex_buffer.size, &app->index_buffer.indices, &app->index_buffer.size);
 
-    //app->vertex_buffer = buffer_vertex_init(&app->device, &app->renderer.command_pool);
     buffer_vertex_create(&app->vertex_buffer, &app->device, &app->renderer.command_pool);
-    //app->index_buffer = buffer_index_init(&app->device, &app->renderer.command_pool);
     buffer_index_create(&app->index_buffer, &app->device, &app->renderer.command_pool);
     app->ubo_data = buffer_ubo_init(&app->device);
 
@@ -188,7 +183,13 @@ void app_init(t_Application *app) {
 
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    app->window = glfwCreateWindow(800,600, "VulkanDemo", NULL, NULL);
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+
+    app->window = glfwCreateWindow(800 ,600, "VulkanDemo", NULL, NULL);
+    glfwMakeContextCurrent(app->window);
+
+    //glfwSetWindowSize(app->window, mode->width, mode->height);
     glfwSetWindowUserPointer(app->window, app);
     glfwSetFramebufferSizeCallback(app->window, framebuffer_resize_callback);
 
@@ -200,17 +201,17 @@ void app_run(t_Application *app) {
     while(!glfwWindowShouldClose(app->window)) {
         glfwPollEvents();
         if(app->renderer.framebuffer_resized) {
-            swap_chain_recreate(&app->swap_chain, &app->depth_data, &app->device.surface, &app->device, app->window,
+            swap_chain_recreate(&app->swap_chain, &app->depth_data, &app->color_data, &app->device.surface, &app->device, app->window,
                 &app->indices, &app->pipeline.render_pass);
             app->renderer.framebuffer_resized = 0;
         }
         renderer_draw_frame(&app->renderer, &app->device, &app->swap_chain, app->window, &app->indices,
-        &app->pipeline, &app->vertex_buffer, &app->index_buffer, &app->ubo_data, &app->descriptor, &app->depth_data);
+        &app->pipeline, &app->vertex_buffer, &app->index_buffer, &app->ubo_data, &app->descriptor, &app->depth_data, &app->color_data);
     }
     vkDeviceWaitIdle(app->device.instance);
 }
 void app_end(const t_Application *app) {
-    swap_chain_cleanup(&app->swap_chain, &app->depth_data, &app->device.instance);
+    swap_chain_cleanup(&app->swap_chain, &app->depth_data, &app->color_data, &app->device.instance);
     texture_cleanup(&app->device.instance, &app->texture);
 
     buffer_ubo_cleanup(&app->device.instance, &app->ubo_data);

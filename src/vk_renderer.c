@@ -102,7 +102,7 @@ void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, const
 
     vkCmdBindPipeline(*command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->graphics_pipeline);
 
-    const VkBuffer vertexBuffers[] = {vertex_buffer->buffer.instance};
+    const VkBuffer vertex_buffers[] = {vertex_buffer->buffer.instance};
     const VkDeviceSize offsets[] = {0};
 
 
@@ -125,8 +125,7 @@ void renderer_record_command_buffer(const VkCommandBuffer *command_buffer, const
     };
     vkCmdSetScissor(*command_buffer, 0, 1, &scissor);
 
-    //vkCmdDraw(*command_buffer, 3, 1, 0, 0);
-    vkCmdBindVertexBuffers(*command_buffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(*command_buffer, 0, 1, vertex_buffers, offsets);
 
     vkCmdBindIndexBuffer(*command_buffer, index_buffer->buffer.instance, 0, VK_INDEX_TYPE_UINT32);
 
@@ -173,7 +172,7 @@ t_Renderer renderer_init(const t_QueueFamilyIndices *indices, const VkDevice *de
 }
 void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, t_SwapChain *swap_chain, GLFWwindow *window,
     const t_QueueFamilyIndices *indices, const t_Pipeline *pipeline, const t_VertexBuffer *vertex_buffer, const t_IndexBuffer *index_buffer,
-    const t_UniformBufferData *ubo_data, const t_DescriptorData *desc_data, t_DepthData *depth_data) {
+    const t_UniformBufferData *ubo_data, const t_DescriptorData *desc_data, t_DepthData *depth_data, t_ColorData *color_data) {
     vkWaitForFences(device->instance, 1, &renderer->in_flight_fences[renderer->current_frame], VK_TRUE, UINT64_MAX);
 
     uint32_t image_index;
@@ -181,7 +180,7 @@ void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, t_SwapCha
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || renderer->framebuffer_resized) {
         renderer->framebuffer_resized = 0;
-        swap_chain_recreate(swap_chain, depth_data, &device->surface, device, window, indices, &pipeline->render_pass);
+        swap_chain_recreate(swap_chain, depth_data, color_data, &device->surface, device, window, indices, &pipeline->render_pass);
         return;
     } else if (result != VK_SUCCESS) {
         printf("Failed to acquire swap chain! \n");
@@ -195,9 +194,7 @@ void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, t_SwapCha
 
     renderer_record_command_buffer(&renderer->command_buffers[renderer->current_frame], image_index, pipeline, swap_chain,
         vertex_buffer, index_buffer, desc_data, renderer->current_frame);
-    //VkSubmitInfo submit_info = {
-    //    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO
-    //};
+
     const VkSemaphore wait_semaphores[] = {renderer->image_available_semaphores[renderer->current_frame]};
     const VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     const VkSemaphore signal_semaphores[] = {renderer->render_finished_semaphores[renderer->current_frame]};
@@ -231,7 +228,7 @@ void renderer_draw_frame(t_Renderer *renderer, const t_Device *device, t_SwapCha
     result = vkQueuePresentKHR(device->present_queue, &present_info);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-        swap_chain_recreate(swap_chain, depth_data, &device->surface, device, window, indices,
+        swap_chain_recreate(swap_chain, depth_data, color_data, &device->surface, device, window, indices,
             &pipeline->render_pass);
     } else if (result != VK_SUCCESS) {
         printf("Failed to present swap chain image!\n");

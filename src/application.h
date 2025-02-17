@@ -14,6 +14,7 @@
 #include "vk_renderer.h"
 #include "vk_validation.h"
 #include "vk_buffers.h"
+#include "vk_color.h"
 #include "vk_depth.h"
 #include "vk_descriptor.h"
 
@@ -46,6 +47,7 @@ typedef struct Application {
     t_UniformBufferData ubo_data;
     t_Texture texture;
     t_DepthData depth_data;
+    t_ColorData color_data;
 }t_Application;
 
 t_QueueFamilyIndices app_find_queue_families(const VkSurfaceKHR *surface, const VkPhysicalDevice *device);

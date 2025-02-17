@@ -47,7 +47,9 @@ add_executable(VulkanDemo src/main.c
         src/vk_depth.h
         include/tinyobj_loader_c/tinyobj_loader_c.h
         src/model.c
-        src/model.h)
+        src/model.h
+        src/vk_color.c
+        src/vk_color.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)

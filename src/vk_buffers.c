@@ -217,7 +217,7 @@ void buffer_ubo_update(const uint32_t current_image, const VkExtent2D *extent_2d
     t_UniformBufferObject ubo = {};
     glm_mat4_identity(ubo.model); // Start with identity matrix
 
-    float angle = glm_rad(90.0f) * elapsed; // Rotate over time
+    float angle = glm_rad(90.0f) * elapsed/5; // Rotate over time
     glm_rotate(ubo.model, angle, (vec3){0.0f, 0.0f, 1.0f}); // Rotate around Y-axis
 
 

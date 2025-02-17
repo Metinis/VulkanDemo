@@ -4,7 +4,6 @@
 
 #include "utils.h"
 #include "vk_buffers.h"
-#include "vk_depth.h"
 
 static VkShaderModule pipeline_create_shader_module(const VkDevice *device, const unsigned char* code, const size_t file_size) {
     const VkShaderModuleCreateInfo create_info = {
@@ -18,16 +17,16 @@ static VkShaderModule pipeline_create_shader_module(const VkDevice *device, cons
     }
     return shader_module;
 }
-static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *device, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout) {
+static void pipeline_create_graphics(t_Pipeline *pipeline, const t_Device *device, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout) {
     size_t vert_file_size;
     unsigned char* vert_shader_code = read_file("../resources/shader/vert.spv", &vert_file_size);
     size_t frag_file_size;
     unsigned char* frag_shader_code = read_file("../resources/shader/frag.spv", &frag_file_size);
 
-    const VkShaderModule vert_shader_module = pipeline_create_shader_module(device, vert_shader_code, vert_file_size);
+    const VkShaderModule vert_shader_module = pipeline_create_shader_module(&device->instance, vert_shader_code, vert_file_size);
     free(vert_shader_code);
 
-    const VkShaderModule frag_shader_module = pipeline_create_shader_module(device, frag_shader_code, frag_file_size);
+    const VkShaderModule frag_shader_module = pipeline_create_shader_module(&device->instance, frag_shader_code, frag_file_size);
     free(frag_shader_code);
 
     const VkPipelineShaderStageCreateInfo vert_shader_stage_info = {
@@ -113,7 +112,7 @@ static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *devic
     VkPipelineMultisampleStateCreateInfo multi_sampling = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
         .sampleShadingEnable = VK_FALSE,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+        .rasterizationSamples = device->msaa_samples,
         .minSampleShading = 1.0f,
         .pSampleMask = NULL,
         .alphaToCoverageEnable = VK_FALSE,
@@ -160,7 +159,7 @@ static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *devic
         .pPushConstantRanges = NULL, // Optional
     };
 
-    if (vkCreatePipelineLayout(*device, &pipeline_layout_info, NULL, &pipeline->pipeline_layout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(device->instance, &pipeline_layout_info, NULL, &pipeline->pipeline_layout) != VK_SUCCESS) {
         printf("Failed to create pipeline layout! \n");
     }
 
@@ -182,19 +181,18 @@ static void pipeline_create_graphics(t_Pipeline *pipeline, const VkDevice *devic
         .basePipelineHandle = VK_NULL_HANDLE,
         .basePipelineIndex = -1
     };
-    if (vkCreateGraphicsPipelines(*device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->graphics_pipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(device->instance, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline->graphics_pipeline) != VK_SUCCESS) {
         printf("Failed To Create Graphics Pipeline! \n");
     }
-    vkDestroyShaderModule(*device, vert_shader_module, NULL);
-    vkDestroyShaderModule(*device, frag_shader_module, NULL);
+    vkDestroyShaderModule(device->instance, vert_shader_module, NULL);
+    vkDestroyShaderModule(device->instance, frag_shader_module, NULL);
 
 }
-static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *device,
-    const VkPhysicalDevice *physical_device, const VkFormat *image_format) {
+static void pipeline_create_render_pass(t_Pipeline *pipeline, const t_Device *device, const VkFormat *image_format) {
 
     VkAttachmentDescription depth_attachment = {
-        .format = depth_find_format(physical_device),
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .format = depth_find_format(&device->physical_device),
+        .samples = device->msaa_samples,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -207,16 +205,29 @@ static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *de
         .attachment = 1,
         .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
     };
-
-    VkAttachmentDescription color_attachment = {
+    VkAttachmentDescription color_attachment_resolve = {
         .format = *image_format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
         .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+    VkAttachmentReference color_attachment_resolve_ref = {
+        .attachment = 2,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+    VkAttachmentDescription color_attachment = {
+        .format = *image_format,
+        .samples = device->msaa_samples,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
     VkAttachmentReference color_attachment_ref = {
@@ -224,11 +235,13 @@ static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *de
         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
+
     VkSubpassDescription subpass = {
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
         .pColorAttachments = &color_attachment_ref,
-        .pDepthStencilAttachment = &depth_attachment_ref
+        .pDepthStencilAttachment = &depth_attachment_ref,
+        .pResolveAttachments = &color_attachment_resolve_ref
 
     };
 
@@ -240,11 +253,11 @@ static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *de
         .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
         .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
     };
-    VkAttachmentDescription attachment_description[2] = {color_attachment, depth_attachment};
+    VkAttachmentDescription attachment_description[3] = {color_attachment, depth_attachment, color_attachment_resolve};
 
     const VkRenderPassCreateInfo render_pass_info = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = 2,
+        .attachmentCount = 3,
         .pAttachments = attachment_description,
         .subpassCount = 1,
         .pSubpasses = &subpass,
@@ -253,13 +266,13 @@ static void pipeline_create_render_pass(t_Pipeline *pipeline, const VkDevice *de
     };
 
 
-    if (vkCreateRenderPass(*device, &render_pass_info, NULL, &pipeline->render_pass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(device->instance, &render_pass_info, NULL, &pipeline->render_pass) != VK_SUCCESS) {
         printf("Failed to create render pass! \n");
     }
 }
-t_Pipeline pipeline_init(const VkDevice *device, const VkPhysicalDevice *physical_device, const VkFormat *image_format, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout) {
+t_Pipeline pipeline_init(const t_Device *device, const VkFormat *image_format, VkExtent2D *extent, VkDescriptorSetLayout *descriptor_set_layout) {
     t_Pipeline pipeline;
-    pipeline_create_render_pass(&pipeline, device, physical_device, image_format);
+    pipeline_create_render_pass(&pipeline, device, image_format);
     pipeline_create_graphics(&pipeline, device, extent, descriptor_set_layout);
     return pipeline;
 }

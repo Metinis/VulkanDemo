@@ -105,7 +105,7 @@ static void copy_buffer_to_image(const VkBuffer buffer, const VkImage image, con
 }
 
 void create_image(const t_Device *device, VkImage *image, VkDeviceMemory *image_memory, const VkFormat format, const VkImageTiling tiling,
-    const VkImageUsageFlags usage, const VkMemoryPropertyFlags properties, const uint32_t mip_levels, const int tex_width, const int tex_height) {
+    const VkImageUsageFlags usage, const VkMemoryPropertyFlags properties, const uint32_t mip_levels, const VkSampleCountFlagBits num_samples, const int tex_width, const int tex_height) {
     const VkImageCreateInfo image_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -119,7 +119,7 @@ void create_image(const t_Device *device, VkImage *image, VkDeviceMemory *image_
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .usage = usage,//VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .samples = num_samples,
         .flags = 0
     };
 
@@ -264,7 +264,7 @@ static void create_texture_image(const char* filepath, t_Texture *texture, const
 
     create_image(device, &texture->texture_image, &texture->texture_image_memory, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->mip_levels, tex_width, tex_height);
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture->mip_levels, VK_SAMPLE_COUNT_1_BIT, tex_width, tex_height);
 
     transition_image_layout(texture->texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, texture->mip_levels, command_pool, device);
