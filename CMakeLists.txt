@@ -21,35 +21,37 @@ find_package(Vulkan REQUIRED)
 # Add VulkanDemo executable
 add_executable(VulkanDemo src/main.c
         src/application.c
-        src/vk_debug.c
-        src/vk_debug.h
+        src/vulkan/vk_debug.c
+        src/vulkan/vk_debug.h
         src/utils.c
         src/utils.h
-        src/vk_swap_chain.c
-        src/vk_swap_chain.h
-        src/vk_pipeline.c
-        src/vk_pipeline.h
-        src/vk_device.c
-        src/vk_device.h
-        src/vk_validation.c
-        src/vk_validation.h
-        src/vk_buffers.c
-        src/vk_buffers.h
-        src/vk_renderer.c
-        src/vk_renderer.h
-        src/vk_device.h
-        src/vk_descriptor.c
-        src/vk_descriptor.h
+        src/vulkan/vk_swap_chain.c
+        src/vulkan/vk_swap_chain.h
+        src/vulkan/vk_pipeline.c
+        src/vulkan/vk_pipeline.h
+        src/vulkan/vk_device.c
+        src/vulkan/vk_device.h
+        src/vulkan/vk_validation.c
+        src/vulkan/vk_validation.h
+        src/vulkan/vk_buffers.c
+        src/vulkan/vk_buffers.h
+        src/vulkan/vk_renderer.c
+        src/vulkan/vk_renderer.h
+        src/vulkan/vk_device.h
+        src/vulkan/vk_descriptor.c
+        src/vulkan/vk_descriptor.h
         include/stb/stb_image.h
         src/texture.c
         src/texture.h
-        src/vk_depth.c
-        src/vk_depth.h
+        src/vulkan/vk_depth.c
+        src/vulkan/vk_depth.h
         include/tinyobj_loader_c/tinyobj_loader_c.h
         src/model.c
         src/model.h
-        src/vk_color.c
-        src/vk_color.h)
+        src/vulkan/vk_color.c
+        src/vulkan/vk_color.h
+        src/vulkan/vk_core.c
+        src/vulkan/vk_core.h)
 
 # Link GLFW
 target_link_libraries(VulkanDemo glfw Vulkan::Vulkan)

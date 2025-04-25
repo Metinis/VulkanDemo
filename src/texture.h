@@ -1,5 +1,5 @@
 #pragma once
-#include "vk_device.h"
+#include "vulkan/vk_device.h"
 
 typedef struct Texture {
     VkBuffer staging_buffer;

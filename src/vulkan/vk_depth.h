@@ -1,8 +1,8 @@
 #pragma once
 #include <vulkan/vulkan_core.h>
 #include "vk_swap_chain.h"
-#include "texture.h"
-#include "utils.h"
+#include "../texture.h"
+#include "../utils.h"
 
 typedef struct DepthData {
     VkImage depth_image;

@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "vk_buffers.h"
-#include "vk_depth.h"
-#include "vk_renderer.h"
+#include "vulkan/vk_buffers.h"
+#include "vulkan/vk_depth.h"
+#include "vulkan/vk_renderer.h"
 void transition_image_layout(VkImage image, VkFormat format, const VkImageLayout old_layout, const VkImageLayout new_layout,
     const uint32_t mip_levels, const VkCommandPool *command_pool, const t_Device *device) {
     VkCommandBuffer command_buffer = begin_single_time_commands(command_pool, &device->instance);

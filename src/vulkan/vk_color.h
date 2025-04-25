@@ -1,6 +1,6 @@
 #pragma once
 #include <vulkan/vulkan_core.h>
-#include "texture.h"
+#include "../texture.h"
 #include "vk_swap_chain.h"
 
 typedef struct ColorData {

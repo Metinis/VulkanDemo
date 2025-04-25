@@ -1,6 +1,6 @@
 #pragma once
 #include <vulkan/vulkan_core.h>
-#include "utils.h"
+#include "../utils.h"
 #include "GLFW/glfw3.h"
 
 typedef struct Device {

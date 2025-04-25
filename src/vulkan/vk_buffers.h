@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <vulkan/vulkan_core.h>
 #include "vk_device.h"
-#include "utils.h"
+#include "../utils.h"
 
 typedef struct Buffer {
     VkBuffer instance;

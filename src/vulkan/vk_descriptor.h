@@ -1,7 +1,7 @@
 #pragma once
 #include <cglm/mat4.h>
 #include <vulkan/vulkan_core.h>
-#include "texture.h"
+#include "../texture.h"
 #include "vk_buffers.h"
 
 typedef struct DescriptorData {

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "application.h"
+#include "../application.h"
 #include "vk_swap_chain.h"
 #include "GLFW/glfw3.h"
 static uint8_t device_check_extension_support(const t_Device *device, const VkPhysicalDevice *physical_device) {
@@ -27,7 +27,7 @@ static uint8_t device_check_extension_support(const t_Device *device, const VkPh
     return matching_ext_count == device->device_ext_size;
 }
 static uint8_t device_check_suitable(const t_Device *device, const VkPhysicalDevice *physical_device) {
-    const t_QueueFamilyIndices indices = app_find_queue_families(&device->surface, physical_device);
+    const t_QueueFamilyIndices indices = vk_find_queue_families(&device->surface, physical_device);
 
     //check swap chain support
 
@@ -167,7 +167,7 @@ t_Device device_init(const VkInstance *instance, GLFWwindow *window, t_QueueFami
     device_create_surface(instance, window, &device.surface);
     device_pick_physical_device(&device, instance);
 
-    *indices = app_find_queue_families(&device.surface, &device.physical_device);
+    *indices = vk_find_queue_families(&device.surface, &device.physical_device);
     device_create_logical(&device, indices, has_validation_support, validation_layers, validation_size);
 
     return device;
